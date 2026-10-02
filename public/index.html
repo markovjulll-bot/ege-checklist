@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ЕГЭ по русскому — чек-лист подготовки</title>
+<title>Мой кабинет — русский язык</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
@@ -12,148 +12,237 @@
 <body>
 <div class="wrap">
   <div class="stripe" aria-hidden="true"></div>
+  <h1 id="pageTitle">Мой кабинет: русский язык</h1>
 
-  <div class="top">
-    <div>
-      <h1>ЕГЭ по русскому: что я уже умею</h1>
-      <p class="lead">Отмечай пункты, которые точно освоил. Процент по каждому заданию считается сам, а карта сверху показывает, куда стоит направить силы.</p>
-    </div>
-    <div class="ring" aria-live="polite">
-      <svg viewBox="0 0 120 120" aria-hidden="true">
-        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9152"/><stop offset=".4" stop-color="#f5638f"/><stop offset=".75" stop-color="#8b8cff"/><stop offset="1" stop-color="#4fc3f0"/></linearGradient></defs>
-        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--track)" stroke-width="12"/>
-        <circle id="ringArc" cx="60" cy="60" r="50" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
-      </svg>
-      <div class="num"><b id="totalPct">0%</b><span id="totalPts">0 из 50 баллов</span></div>
-    </div>
+  <div class="card me">
+    <label for="name">Имя и фамилия (их увидит учитель)
+      <input id="name" autocomplete="name" placeholder="Например, Аня Смирнова">
+    </label>
+    <div class="status" id="status" aria-live="polite">Загружаю…</div>
   </div>
-
-  <main>
-    <div class="card me">
-      <label for="name">Имя и фамилия (их увидит учитель)
-        <input id="name" autocomplete="name" placeholder="Например, Аня Смирнова">
-      </label>
-      <div class="status" id="status" aria-live="polite">Загружаю…</div>
-    </div>
-    <div class="card me" style="margin-top:10px">
-      <div class="small" style="flex:1 1 300px">Твой код: <span class="code" id="code">—</span>. Запиши его: с ним можно продолжить на другом телефоне или компьютере.</div>
+  <div class="card me" style="margin-top:10px">
+    <div class="small" style="flex:1 1 300px">Твой код: <span class="code" id="code">—</span>. Запиши его: с ним можно войти в кабинет с другого телефона или компьютера.</div>
+    <div class="row">
+      <span class="chip" id="gradeChip" hidden></span>
+      <button class="linkbtn" type="button" id="changeGrade" hidden>Сменить класс</button>
       <button class="linkbtn" type="button" id="haveCode">У меня уже есть код</button>
     </div>
-    <div class="card pinbox" id="restoreBox" hidden>
-      <label for="restore" class="small">Введи код с другого устройства</label>
-      <input id="restore" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Например, K7MP2QXA" maxlength="8">
-      <div class="err" id="restoreErr"></div>
-      <div class="row"><button class="btn" type="button" id="restoreBtn">Продолжить с этим кодом</button><button class="btn ghost" type="button" id="restoreCancel">Отмена</button></div>
-    </div>
+  </div>
+  <div class="card pinbox" id="restoreBox" hidden>
+    <label for="restore" class="small">Введи код с другого устройства</label>
+    <input id="restore" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Например, K7MP2QXA" maxlength="8">
+    <div class="err" id="restoreErr"></div>
+    <div class="row"><button class="btn" type="button" id="restoreBtn">Войти с этим кодом</button><button class="btn ghost" type="button" id="restoreCancel">Отмена</button></div>
+  </div>
 
-    <section class="card map" aria-labelledby="mapTitle">
-      <div class="map-head">
-        <h2 id="mapTitle">Карта экзамена</h2>
-        <div class="legend">
-          <span><i style="background:var(--pink)"></i>до 25%</span>
-          <span><i style="background:var(--orange)"></i>25–49%</span>
-          <span><i style="background:var(--violet)"></i>50–74%</span>
-          <span><i style="background:var(--sky)"></i>75–100%</span>
+  <section class="card gradebox" id="gradeBox" hidden aria-labelledby="gradeTitle">
+    <h2 id="gradeTitle">В каком ты классе?</h2>
+    <p class="small" style="margin:0">От этого зависит, какой чек-лист и какие задания ты увидишь: 6–7 класс — темы школьной программы и ВПР, 8–9 — ОГЭ, 10–11 — ЕГЭ.</p>
+    <div class="grades" id="grades"></div>
+  </section>
+
+  <div id="cabinet" hidden>
+    <nav class="seg" role="tablist" aria-label="Разделы кабинета">
+      <button role="tab" id="t-check" aria-controls="p-check" aria-selected="true">Чек-лист</button>
+      <button role="tab" id="t-files" aria-controls="p-files" aria-selected="false">Раздатки</button>
+      <button role="tab" id="t-mocks" aria-controls="p-mocks" aria-selected="false">Пробники</button>
+    </nav>
+
+    <main id="p-check" role="tabpanel" aria-labelledby="t-check">
+      <div class="top" style="margin-top:28px">
+        <div>
+          <h2 style="font-size:24px;font-weight:600">Что я уже умею</h2>
+          <p class="lead" id="checkLead">Отмечай пункты, которые точно освоил. Процент считается сам, а карта показывает, куда стоит направить силы.</p>
+        </div>
+        <div class="ring" aria-live="polite">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9152"/><stop offset=".4" stop-color="#f5638f"/><stop offset=".75" stop-color="#8b8cff"/><stop offset="1" stop-color="#4fc3f0"/></linearGradient></defs>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--track)" stroke-width="12"/>
+            <circle id="ringArc" cx="60" cy="60" r="50" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
+          </svg>
+          <div class="num"><b id="totalPct">0%</b><span id="totalPts"></span></div>
         </div>
       </div>
-      <div class="tiles" id="tiles"></div>
+      <section class="card map" aria-labelledby="mapTitle">
+        <div class="map-head">
+          <h2 id="mapTitle">Карта</h2>
+          <div class="legend">
+            <span><i style="background:var(--pink)"></i>до 25%</span>
+            <span><i style="background:var(--orange)"></i>25–49%</span>
+            <span><i style="background:var(--violet)"></i>50–74%</span>
+            <span><i style="background:var(--sky)"></i>75–100%</span>
+          </div>
+        </div>
+        <div class="tiles" id="tiles"></div>
+      </section>
+      <div id="sections"></div>
+    </main>
+
+    <section id="p-files" role="tabpanel" aria-labelledby="t-files" hidden>
+      <div class="panel-head"><div><h2>Раздатки</h2><p>Материалы от учителя для твоего класса. Нажми на название, чтобы открыть или скачать.</p></div></div>
+      <div id="filesBox"><div class="card empty">Загружаю…</div></div>
     </section>
 
-    <div id="sections"></div>
-  </main>
+    <section id="p-mocks" role="tabpanel" aria-labelledby="t-mocks" hidden>
+      <div class="panel-head">
+        <div><h2 id="mocksTitle">Пробники</h2><p id="mocksLead"></p></div>
+        <button class="btn" type="button" id="addMock">Добавить результат</button>
+      </div>
+      <div class="exsel" id="exSel" style="margin-top:14px" hidden></div>
+      <div id="mockFormBox"></div>
+      <div class="card box"><h3>Как растёт балл</h3><div id="chartBox"></div></div>
+      <div class="card box"><h3>Задания в среднем по всем результатам</h3><div id="avgBox"></div></div>
+      <div id="mockList"></div>
+    </section>
 
-  <footer>
-    Номера, названия и баллы заданий — по спецификации и <a href="https://doc.fipi.ru/navigator-podgotovki/navigator-ege/MR_rus_yaz_ege_2026.pdf">методическим рекомендациям ФИПИ 2026</a>. «В среднем решают» — средний процент выполнения задания на ЕГЭ 2025 по данным ФИПИ.
-  </footer>
+    <footer id="footer"></footer>
+  </div>
 </div>
 
 <script src="/tasks.js"></script>
+<script src="/ui.js"></script>
 <script>
 (function(){
 "use strict";
-const {T, BLOCKS, CARDS, pctOf, totals, tone} = window.EGE;
-const API = "/api/progress";
+const E = window.EGE, ui = E.ui;
+const {TRACKS, EXAMS, CARDS, unitPct, trackTotals, tone, trackOfGrade, normChecks} = E;
 const LS = "ege-ru-checklist-v1";
 const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const $ = s => document.querySelector(s);
 
 function newCode(){ const a = new Uint8Array(8); crypto.getRandomValues(a); let s=""; for (const b of a) s += ALPH[b % ALPH.length]; return s; }
-let state = {id:"", name:"", checks:{}, updated:0};
-try { const raw = localStorage.getItem(LS); if (raw){ const s = JSON.parse(raw); if (s && typeof s==="object") state = {id:s.id||"", name:s.name||"", checks:s.checks||{}, updated:+s.updated||0}; } } catch(e) {}
+let state = {id:"", name:"", grade:null, checks:{}, updated:0};
+try { const raw = localStorage.getItem(LS); if (raw){ const s = JSON.parse(raw); if (s && typeof s==="object") state = {id:s.id||"", name:s.name||"", grade:E.GRADES.includes(+s.grade)?+s.grade:null, checks:normChecks(s.checks), updated:+s.updated||0}; } } catch(e) {}
 if (!/^[A-Z2-9]{8}$/.test(state.id)) state.id = newCode();
 function keep(){ try { localStorage.setItem(LS, JSON.stringify(state)); } catch(e) {} }
 keep();
+const track = () => trackOfGrade(state.grade);
+const tchecks = () => state.checks[track()] || {};
 
-const pct = n => pctOf(state.checks, T.find(x=>x.n===n));
-
-// ---- build UI ----
-const tiles = $("#tiles"), sections = $("#sections");
-for (const t of T){
-  const b = document.createElement("button");
-  b.type="button"; b.className="tile"; b.id="tile"+t.n;
-  b.innerHTML = '<span class="fill"></span><span class="n"></span><span class="p"></span>';
-  b.querySelector(".n").textContent = t.n;
-  b.setAttribute("aria-label", "Задание "+t.n+": "+t.t);
-  b.addEventListener("click", ()=>{ const d = document.getElementById("task"+t.n); d.open = true; d.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"}); d.querySelector("summary").focus({preventScroll:true}); });
-  tiles.appendChild(b);
+/* ---------- выбор класса ---------- */
+const gradesBox = $("#grades");
+for (const g of E.GRADES){
+  const tr = TRACKS[trackOfGrade(g)];
+  const b = ui.el("button", {type:"button", "aria-pressed":"false", "data-g":g, onclick: ()=>setGrade(g)}, g, ui.el("span", {text: tr.title}));
+  gradesBox.append(b);
 }
-for (const bl of BLOCKS){
-  const sec = document.createElement("section"); sec.className="section"; sec.setAttribute("aria-labelledby", bl.id);
-  const h = document.createElement("h2"); h.id = bl.id; h.textContent = bl.title; sec.appendChild(h);
-  const p = document.createElement("p"); p.textContent = bl.sub; sec.appendChild(p);
-  for (const t of T.filter(x=>x.n>=bl.from && x.n<=bl.to)){
-    const d = document.createElement("details"); d.className="task card"; d.id="task"+t.n;
-    const sm = document.createElement("summary");
-    const meta = (t.pts===1?"1 балл":t.pts===22?"до 22 баллов":t.pts+" балла") + (t.avg!=null ? ", в среднем решают "+t.avg+"%" : "");
-    sm.innerHTML = '<span class="badge"></span><span><span class="ttl"></span><span class="meta"></span><span class="bar"><span></span></span></span><span class="pct"><span class="v">0%</span><span class="chev" aria-hidden="true">▶</span></span>';
-    sm.querySelector(".badge").textContent = t.n;
-    sm.querySelector(".ttl").textContent = t.t;
-    sm.querySelector(".meta").textContent = meta;
-    d.appendChild(sm);
-    const box = document.createElement("div"); box.className="items";
-    t.i.forEach((txt,j)=>{
-      const lab = document.createElement("label"); lab.className="item";
-      const cb = document.createElement("input"); cb.type="checkbox"; cb.dataset.j=j;
-      const sp = document.createElement("span"); sp.textContent = txt;
-      lab.appendChild(cb); lab.appendChild(sp); box.appendChild(lab);
-      cb.addEventListener("change", ()=>{ const arr = (state.checks[t.n]||[]).slice(); while (arr.length<t.i.length) arr.push(false); arr[j]=cb.checked; state.checks[t.n]=arr; changed(); });
-    });
-    if (t.card && CARDS){ const m = document.createElement("p"); m.className="more"; m.innerHTML = '<a target="_blank" rel="noopener">Карточка с исключениями и словами</a>'; m.querySelector("a").href = CARDS; box.appendChild(m); }
-    d.appendChild(box); sec.appendChild(d);
+function setGrade(g){
+  const before = track();
+  state.grade = g; keep();
+  if (before !== track()){ mocksLoaded = false; filesLoaded = false; closeForm(); }
+  buildTrack(); showCabinet(); changed(true);
+}
+function showCabinet(){
+  const has = !!state.grade;
+  $("#gradeBox").hidden = has; $("#cabinet").hidden = !has;
+  $("#gradeChip").hidden = !has; $("#changeGrade").hidden = !has;
+  gradesBox.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(+b.dataset.g===state.grade)));
+  if (has){
+    $("#gradeChip").textContent = state.grade+" класс · "+(track()==="school" ? "программа и ВПР" : TRACKS[track()].title);
+    $("#t-mocks").textContent = track()==="school" ? "ВПР" : "Пробники";
   }
-  sections.appendChild(sec);
 }
+$("#changeGrade").addEventListener("click", ()=>{ $("#gradeBox").hidden = false; $("#gradeBox").scrollIntoView({behavior:"smooth", block:"start"}); });
 
+/* ---------- вкладки ---------- */
+const TABS = ["check","files","mocks"];
+function showTab(name, push){
+  if (!TABS.includes(name)) name = "check";
+  for (const t of TABS){ $("#t-"+t).setAttribute("aria-selected", String(t===name)); $("#p-"+t).hidden = t!==name; }
+  if (push) history.replaceState(null, "", "#"+name);
+  if (name==="files") loadFiles();
+  if (name==="mocks") loadMocks();
+}
+for (const t of TABS) $("#t-"+t).addEventListener("click", ()=>showTab(t, true));
+$(".seg").addEventListener("keydown", e=>{
+  if (e.key!=="ArrowRight" && e.key!=="ArrowLeft") return;
+  const i = TABS.findIndex(t=>$("#t-"+t).getAttribute("aria-selected")==="true");
+  const n = TABS[(i + (e.key==="ArrowRight"?1:TABS.length-1)) % TABS.length];
+  showTab(n, true); $("#t-"+n).focus();
+});
+
+/* ---------- чек-лист текущей версии ---------- */
+function openUnit(id){
+  showTab("check", true);
+  const d = document.getElementById("u-"+id); if (!d) return;
+  d.open = true;
+  d.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"});
+  d.querySelector("summary").focus({preventScroll:true});
+}
+function buildTrack(){
+  const tk = track(); if (!tk) return;
+  const tr = TRACKS[tk];
+  $("#pageTitle").textContent = "Мой кабинет: " + (tk==="school" ? "русский язык, 6–7 класс" : tr.title+" по русскому");
+  $("#mapTitle").textContent = tk==="school" ? "Карта тем" : "Карта экзамена";
+  $("#footer").innerHTML = tr.source;
+  const tiles = $("#tiles"), sections = $("#sections");
+  tiles.innerHTML = ""; sections.innerHTML = "";
+  tiles.className = "tiles"+(tr.units.length<=16 ? " few" : "");
+  for (const u of tr.units){
+    const b = ui.el("button", {type:"button", class:"tile", id:"tile-"+u.id, "aria-label":(tk==="school"?"":"Задание ")+u.label+": "+u.t, title:u.t, onclick: ()=>openUnit(u.id)},
+      ui.el("span", {class:"fill"}), ui.el("span", {class:"n", text:u.label, style: u.label.length>3 ? "font-size:13px" : null}), ui.el("span", {class:"p"}));
+    tiles.append(b);
+  }
+  tr.blocks.forEach((bl,bi)=>{
+    const hid = "blk"+bi;
+    const sec = ui.el("section", {class:"section", "aria-labelledby":hid}, ui.el("h2", {id:hid, text:bl.title}), ui.el("p", {text:bl.sub}));
+    for (const id of bl.ids){
+      const u = tr.units.find(x=>x.id===id);
+      const meta = u.pts ? (u.pts===1?"1 балл":(u.pts<5?u.pts+" балла":"до "+u.pts+" баллов")) + (u.avg!=null ? ", в среднем решают "+u.avg+"%" : "") : (u.grade ? u.grade+" класс" : "6 и 7 класс");
+      const d = ui.el("details", {class:"task card", id:"u-"+u.id});
+      const sm = ui.el("summary", {},
+        ui.el("span", {class:"badge", text: tk==="school" ? String(tr.units.indexOf(u)+1) : u.label, style: u.label.length>2 && tk!=="school" ? "font-size:15px" : null}),
+        ui.el("span", {}, ui.el("span", {class:"ttl", text:u.t}), ui.el("span", {class:"meta", text:meta}), ui.el("span", {class:"bar"}, ui.el("span"))),
+        ui.el("span", {class:"pct"}, ui.el("span", {class:"v", text:"0%"}), ui.el("span", {class:"chev", "aria-hidden":"true", text:"▶"})));
+      d.append(sm);
+      const box = ui.el("div", {class:"items"});
+      u.i.forEach((txt,j)=>{
+        const cb = ui.el("input", {type:"checkbox", "data-j":j, onchange: e=>{
+          const all = state.checks[tk] = state.checks[tk] || {};
+          const arr = (all[u.id]||[]).slice(); while (arr.length<u.i.length) arr.push(false);
+          arr[j] = e.target.checked; all[u.id] = arr; changed();
+        }});
+        box.append(ui.el("label", {class:"item"}, cb, ui.el("span", {text:txt})));
+      });
+      if (u.card && CARDS){ box.append(ui.el("p", {class:"more"}, ui.el("a", {href:CARDS, target:"_blank", rel:"noopener", text:"Карточка с исключениями и словами"}))); }
+      d.append(box); sec.append(d);
+    }
+    sections.append(sec);
+  });
+  render();
+}
 function render(){
-  for (const t of T){
-    const p = pct(t.n), tn = tone(p);
-    const tile = document.getElementById("tile"+t.n);
+  $("#code").textContent = state.id;
+  if (document.activeElement !== $("#name")) $("#name").value = state.name;
+  const tk = track(); if (!tk) return;
+  const tr = TRACKS[tk], ch = tchecks();
+  for (const u of tr.units){
+    const p = unitPct(ch, u), tn = tone(p);
+    const tile = document.getElementById("tile-"+u.id); if (!tile) continue;
     const fill = tile.querySelector(".fill"); fill.style.height = p+"%"; fill.style.background = "var(--"+tn+"-bg)";
     tile.style.borderColor = p>0 ? "var(--"+tn+")" : "var(--line)";
     const pp = tile.querySelector(".p"); pp.textContent = p+"%"; pp.style.color = p>0 ? "var(--"+tn+")" : "var(--ink-2)";
-    const d = document.getElementById("task"+t.n);
+    const d = document.getElementById("u-"+u.id);
     const v = d.querySelector(".pct .v"); v.textContent = p+"%"; v.style.color = p>0 ? "var(--"+tn+")" : "var(--ink-2)";
     const bar = d.querySelector(".bar > span"); bar.style.width = p+"%"; bar.style.background = "var(--"+tn+")";
-    const c = state.checks[t.n]||[];
+    const c = ch[u.id]||[];
     d.querySelectorAll("input[type=checkbox]").forEach(cb=>{ cb.checked = !!c[+cb.dataset.j]; });
   }
-  const tot = totals(state.checks);
+  const tot = trackTotals(tk, ch);
   $("#totalPct").textContent = tot.avg+"%";
-  $("#totalPts").textContent = "≈ "+tot.pts+" из 50 баллов";
+  $("#totalPts").textContent = tr.points ? "≈ "+tot.pts+" из "+tr.points+" баллов" : "тем освоено";
   $("#ringArc").setAttribute("stroke-dashoffset", (314.16*(1-tot.avg/100)).toFixed(2));
-  if (document.activeElement !== $("#name")) $("#name").value = state.name;
-  $("#code").textContent = state.id;
 }
 
-// ---- sync with server ----
+/* ---------- сохранение ---------- */
 let timer=null, saving=false, again=false;
 const setStatus = s => { $("#status").textContent = s; };
-function changed(){ state.updated = Date.now(); keep(); render(); clearTimeout(timer); timer = setTimeout(save, 800); setStatus("Сохраняю…"); }
+function changed(quiet){ state.updated = Date.now(); keep(); render(); clearTimeout(timer); timer = setTimeout(save, quiet?100:800); setStatus("Сохраняю…"); }
 async function save(){
   if (saving){ again=true; return; }
   saving=true;
   try {
-    const r = await fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({id:state.id, name:state.name.trim().slice(0,80), checks:state.checks})});
+    const r = await fetch("/api/progress", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({id:state.id, name:state.name.trim().slice(0,80), grade:state.grade, checks:state.checks})});
     if (!r.ok) throw new Error(String(r.status));
     setStatus(state.name.trim() ? "Сохранено. Учитель видит твой прогресс." : "Сохранено. Впиши имя, чтобы учитель понял, чей это прогресс.");
   } catch(e){
@@ -161,36 +250,113 @@ async function save(){
     setTimeout(()=>{ if (!saving) save(); }, 15000);
   } finally { saving=false; if (again){ again=false; save(); } }
 }
-async function load(id){
-  const r = await fetch(API+"?id="+encodeURIComponent(id));
+async function loadProgress(id){
+  const r = await fetch("/api/progress?id="+encodeURIComponent(id));
   if (r.status===404) return null;
   if (!r.ok) throw new Error(String(r.status));
   return r.json();
 }
 $("#name").addEventListener("input", e=>{ state.name = e.target.value; changed(); });
 
-// restore by code
+/* ---------- вход по коду ---------- */
 $("#haveCode").addEventListener("click", ()=>{ $("#restoreBox").hidden=false; $("#restore").focus(); });
 $("#restoreCancel").addEventListener("click", ()=>{ $("#restoreBox").hidden=true; $("#restoreErr").textContent=""; });
 $("#restoreBtn").addEventListener("click", async ()=>{
   const code = $("#restore").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
   if (!/^[A-Z2-9]{8}$/.test(code)){ $("#restoreErr").textContent = "Код — это 8 латинских букв и цифр, например K7MP2QXA."; return; }
   try {
-    const d = await load(code);
-    if (!d){ $("#restoreErr").textContent = "Такого кода нет. Проверь, нет ли опечатки."; return; }
-    state = {id:code, name:d.name||"", checks:d.checks||{}, updated:Date.parse(d.updated)||0}; keep(); render();
+    const [d, m] = await Promise.all([loadProgress(code), fetch("/api/mocks?id="+code).then(r=>r.ok?r.json():{items:[]})]);
+    if (!d && !(m.items||[]).length){ $("#restoreErr").textContent = "Такого кода нет. Проверь, нет ли опечатки."; return; }
+    state = {id:code, name:(d&&d.name)||"", grade: d&&E.GRADES.includes(+d.grade) ? +d.grade : state.grade, checks:normChecks(d&&d.checks), updated:d?Date.parse(d.updated)||0:0}; keep();
+    mocksLoaded = false; filesLoaded = false;
     $("#restoreBox").hidden=true; $("#restoreErr").textContent="";
-    setStatus("Готово, продолжаем с кода "+code+".");
+    showCabinet(); buildTrack();
+    if (!$("#p-mocks").hidden) loadMocks();
+    if (!$("#p-files").hidden) loadFiles();
+    setStatus("Готово, ты вошёл с кодом "+code+".");
   } catch(e){ $("#restoreErr").textContent = "Нет связи с сервером. Попробуй ещё раз."; }
 });
 
-render();
+/* ---------- раздатки ---------- */
+let filesLoaded = false;
+async function loadFiles(force){
+  if ((filesLoaded && !force) || !track()) return;
+  try {
+    const r = await fetch("/api/files?track="+track()); if (!r.ok) throw 0;
+    const j = await r.json(); filesLoaded = true;
+    ui.filesList($("#filesBox"), j.items||[], {emptyText:"Учитель пока не добавил раздатки для твоего класса. Загляни позже."});
+  } catch(e){ $("#filesBox").innerHTML = '<div class="card empty">Не удалось загрузить список. Проверь интернет и обнови страницу.</div>'; }
+}
+
+/* ---------- пробники ---------- */
+let mocks = [], mocksLoaded = false, curExam = null;
+function examsHere(){ return TRACKS[track()].exams; }
+function defaultExam(){ const ex = examsHere(); if (ex.length===1) return ex[0]; return state.grade===7 ? "vpr7" : "vpr6"; }
+function renderMocks(){
+  const ex = examsHere();
+  if (!ex.includes(curExam)) curExam = defaultExam();
+  const school = track()==="school";
+  $("#mocksTitle").textContent = school ? "ВПР и проверочные" : "Пробники";
+  $("#mocksLead").textContent = school ? "Результаты ВПР и тренировочных вариантов: твои и внесённые учителем. Баллы и отметка — по критериям ВПР." : "Результаты пробных экзаменов: твои и внесённые учителем. Баллы — первичные, из "+EXAMS[ex[0]].total+".";
+  const sel = $("#exSel"); sel.hidden = ex.length<2; sel.innerHTML = "";
+  for (const k of ex) sel.append(ui.el("button", {type:"button", "aria-pressed": String(k===curExam), text:EXAMS[k].title, onclick: ()=>{ curExam=k; closeForm(); renderMocks(); }}));
+  const mine = mocks.filter(it=>ex.includes(ui.examOf(it)));
+  const cur = mine.filter(it=>ui.examOf(it)===curExam);
+  ui.chart($("#chartBox"), cur, curExam);
+  ui.taskAverages($("#avgBox"), cur, curExam, null);
+  ui.mockList($("#mockList"), ex.length>1 ? cur : mine, {
+    emptyText: "Пока нет ни одного результата. Нажми «Добавить результат», когда напишешь работу.",
+    studentLabel: "внесено мной",
+    canEdit: it => it.by==="student",
+    onEdit: it => openForm(it),
+    onDelete: async it => {
+      if (!confirm("Удалить результат от "+ui.fmtDate(it.date)+"?")) return;
+      const r = await fetch("/api/mocks?id="+state.id+"&mid="+encodeURIComponent(it.mid), {method:"DELETE"});
+      if (r.ok){ mocks = mocks.filter(x=>x.mid!==it.mid); renderMocks(); } else alert("Не удалось удалить. Попробуй ещё раз.");
+    }
+  });
+}
+async function loadMocks(force){
+  if (!track() || (mocksLoaded && !force)) { if (mocksLoaded) renderMocks(); return; }
+  try {
+    const r = await fetch("/api/mocks?id="+state.id); if (!r.ok) throw 0;
+    mocks = (await r.json()).items || []; mocksLoaded = true; renderMocks();
+  } catch(e){ $("#mockList").innerHTML = '<div class="card empty">Не удалось загрузить результаты. Проверь интернет и обнови страницу.</div>'; }
+}
+function openForm(item){
+  $("#addMock").hidden = true;
+  ui.mockForm($("#mockFormBox"), {
+    initial: item, exam: curExam || defaultExam(), submitLabel: item ? "Сохранить изменения" : "Сохранить результат",
+    onCancel: closeForm,
+    onSubmit: async m => {
+      const r = await fetch("/api/mocks", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({id:state.id, mock:m})});
+      if (!r.ok) throw new Error(r.status===403 ? "Этот результат внёс учитель, его нельзя изменить." : "Не удалось сохранить. Проверь интернет и попробуй ещё раз.");
+      const j = await r.json();
+      mocks = mocks.filter(x=>x.mid!==j.item.mid).concat(j.item).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+      closeForm(); renderMocks();
+    }
+  });
+  $("#mockFormBox").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function closeForm(){ $("#mockFormBox").innerHTML = ""; $("#addMock").hidden = false; }
+$("#addMock").addEventListener("click", ()=>openForm(null));
+
+/* ---------- старт ---------- */
+showCabinet(); buildTrack(); render();
+if (state.grade) showTab((location.hash||"").slice(1) || "check", false);
 (async ()=>{
   try {
-    const d = await load(state.id);
-    if (d && (Date.parse(d.updated)||0) >= state.updated){ state.checks = d.checks||{}; if (!state.name && d.name) state.name = d.name; state.updated = Date.parse(d.updated)||0; keep(); render(); setStatus("Прогресс загружен. Учитель видит твои отметки."); }
-    else if (d){ save(); }
-    else { setStatus("Отмечай пункты: прогресс сохранится, и его увидит учитель."); if (Object.keys(state.checks).length || state.name) save(); }
+    const d = await loadProgress(state.id);
+    if (d && (Date.parse(d.updated)||0) >= state.updated){
+      state.checks = normChecks(d.checks); if (!state.name && d.name) state.name = d.name;
+      if (E.GRADES.includes(+d.grade)) state.grade = +d.grade;
+      state.updated = Date.parse(d.updated)||0; keep();
+      showCabinet(); buildTrack();
+      if (state.grade) showTab((location.hash||"").slice(1) || "check", false);
+      setStatus(state.grade ? "Всё загружено. Учитель видит твой прогресс." : "Выбери свой класс, чтобы открыть кабинет.");
+    }
+    else if (d){ save(); setStatus(state.grade ? "" : "Выбери свой класс, чтобы открыть кабинет."); }
+    else { setStatus(state.grade ? "Впиши имя и отмечай пункты: всё сохранится, и учитель это увидит." : "Впиши имя и выбери свой класс."); if (Object.keys(state.checks).length || state.name) save(); }
   } catch(e){ setStatus("Нет связи с сервером. Отметки сохраняются на этом устройстве."); }
 })();
 })();

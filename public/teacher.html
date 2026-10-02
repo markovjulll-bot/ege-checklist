@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Прогресс класса — ЕГЭ по русскому</title>
+<title>Кабинет учителя — русский язык</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
@@ -13,112 +13,337 @@
 <body>
 <div class="wrap">
   <div class="stripe" aria-hidden="true"></div>
-  <h1>Прогресс класса</h1>
-  <p class="lead">Отметки учеников по 27 заданиям ЕГЭ. Таблица обновляется сама раз в 30 секунд.</p>
+  <h1>Кабинет учителя</h1>
 
   <form class="card pinbox" id="pinForm">
     <label for="pin" class="small">Пароль учителя</label>
     <input id="pin" type="password" autocomplete="current-password" required>
     <div class="err" id="pinErr" aria-live="polite"></div>
-    <button class="btn" type="submit">Открыть таблицу</button>
+    <button class="btn" type="submit">Войти</button>
   </form>
 
-  <section id="board" hidden>
-    <div class="card class-wrap">
-      <div class="class-head">
-        <h2>Ученики</h2>
-        <div class="row">
-          <span class="note" id="classCount" style="margin:0"></span>
-          <button class="btn ghost" type="button" id="refresh">Обновить</button>
-          <button class="btn ghost" type="button" id="csv">Скачать CSV</button>
-          <button class="btn ghost" type="button" id="logout">Выйти</button>
-        </div>
-      </div>
-      <div class="scroller" id="classTable"></div>
-      <p class="note">Нижняя строка — среднее по классу: самые светлые клетки подсказывают, какие задания разобрать на уроке. Наведите на имя, чтобы увидеть время последнего обновления и код ученика. Кнопка «Удалить» убирает лишние или тестовые строки.</p>
+  <div id="app" hidden>
+    <div class="row" style="margin-top:20px;justify-content:space-between">
+      <nav class="seg" aria-label="Версия" id="trackSeg" style="margin:0"></nav>
+      <button class="btn ghost" type="button" id="logout">Выйти</button>
     </div>
-  </section>
+    <nav class="seg" role="tablist" aria-label="Разделы" style="margin-top:12px">
+      <button role="tab" id="t-progress" aria-controls="p-progress" aria-selected="true">Чек-листы</button>
+      <button role="tab" id="t-mocks" aria-controls="p-mocks" aria-selected="false">Пробники</button>
+      <button role="tab" id="t-files" aria-controls="p-files" aria-selected="false">Раздатки</button>
+    </nav>
+
+    <section id="p-progress" role="tabpanel" aria-labelledby="t-progress">
+      <div class="card class-wrap">
+        <div class="class-head">
+          <h2 id="progTitle">Прогресс по чек-листам</h2>
+          <div class="row">
+            <span class="note" id="classCount" style="margin:0"></span>
+            <button class="btn ghost" type="button" id="refresh">Обновить</button>
+            <button class="btn ghost" type="button" id="csv">Скачать CSV</button>
+          </div>
+        </div>
+        <div class="scroller" id="classTable"></div>
+        <p class="note" id="progNote">Нижняя строка — среднее по группе. Наведите на имя, чтобы увидеть код ученика и время обновления, на номер столбца — название темы. Таблица обновляется сама раз в 30 секунд.</p>
+      </div>
+    </section>
+
+    <section id="p-mocks" role="tabpanel" aria-labelledby="t-mocks" hidden>
+      <div class="card class-wrap">
+        <div class="class-head"><h2 id="mocksTitle">Пробники по ученикам</h2><span class="note" style="margin:0">Нажмите на строку, чтобы открыть результаты ученика и внести новый.</span></div>
+        <div class="scroller" id="mocksTable"></div>
+      </div>
+      <div class="card box">
+        <h3 id="avgTitle">Группа по заданиям (последний результат каждого ученика)</h3>
+        <div class="exsel" id="avgSel" style="margin-bottom:12px" hidden></div>
+        <div id="classAvg"></div>
+      </div>
+      <div id="studentPanel"></div>
+    </section>
+
+    <section id="p-files" role="tabpanel" aria-labelledby="t-files" hidden>
+      <form class="card upform" id="upForm">
+        <h2 style="font-size:20px;font-weight:600">Добавить раздатку</h2>
+        <div class="mform-head">
+          <label class="field grow">Название
+            <input id="upTitle" maxlength="120" placeholder="Например, Чередующиеся корни: тренажёр">
+          </label>
+          <label class="field">Раздел
+            <input id="upTopic" list="topics" maxlength="60" placeholder="Орфография">
+          </label>
+          <datalist id="topics"></datalist>
+        </div>
+        <fieldset style="border:0;padding:0;margin:0">
+          <legend class="small" style="font-weight:600;margin-bottom:4px">Для кого (ничего не отмечено — для всех)</legend>
+          <div class="trackchecks" id="upTracks"></div>
+        </fieldset>
+        <label class="field">Файл: PDF, Word, PowerPoint, Excel или картинка, до 4,5 МБ
+          <input id="upFile" type="file" accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg">
+        </label>
+        <span class="or">или, если файл больше, ссылка на него (Яндекс Диск и т. п.)</span>
+        <label class="field"><span class="sr-only">Ссылка</span>
+          <input id="upUrl" type="url" placeholder="https://disk.yandex.ru/…">
+        </label>
+        <div class="row"><button class="btn" type="submit" id="upBtn">Добавить</button><span class="err" id="upErr" aria-live="polite"></span></div>
+      </form>
+      <p class="note" id="filesNote"></p>
+      <div id="filesBox"></div>
+    </section>
+  </div>
 </div>
 
 <script src="/tasks.js"></script>
+<script src="/ui.js"></script>
 <script>
 (function(){
 "use strict";
-const {T, pctOf, totals, tone} = window.EGE;
-const API = "/api/progress";
+const E = window.EGE, ui = E.ui;
+const {TRACKS, EXAMS, unitPct, trackTotals, tone, trackOfGrade, normChecks} = E;
 const $ = s => document.querySelector(s);
 let pin = sessionStorage.getItem("ege-teacher-pin") || "";
-let rows = [], timer = null;
+let curTrack = sessionStorage.getItem("ege-teacher-track") || "ege";
+if (!TRACKS[curTrack]) curTrack = "ege";
+let progress = [], mockRecs = [], timer = null, picked = null, panelExam = null, avgExam = null;
+const H = () => ({"x-teacher-pin": pin});
+const info = {};   // id -> {name, grade}
+const display = id => ((info[id]&&info[id].name)||"").trim() || "Без имени ("+id+")";
+const trackOfStudent = id => { const g = info[id] && info[id].grade; return g ? trackOfGrade(g) : "ege"; };
+const gradeLabel = id => (info[id] && info[id].grade) ? info[id].grade+" кл." : "—";
 
-async function fetchAll(){
-  const r = await fetch(API, {headers:{"x-teacher-pin": pin}});
-  if (r.status===401) throw Object.assign(new Error("pin"), {pin:true});
-  if (!r.ok) throw new Error(String(r.status));
-  return (await r.json()).students || [];
+async function api(url, opt){
+  const r = await fetch(url, opt);
+  if (r.status===401) { logout("Неверный пароль."); throw new Error("pin"); }
+  return r;
 }
-function cell(p){ const td=document.createElement("td"); td.className="c"; td.textContent=p; const tn=tone(p); td.style.background="var(--"+tn+"-bg)"; td.style.color="var(--"+tn+")"; return td; }
-function display(r){ return (r.name||"").trim() || "Без имени ("+r.id+")"; }
+function cell(p, text){ const t=document.createElement("td"); t.className="c"; t.textContent=text ?? p; const tn=tone(p); t.style.background="var(--"+tn+"-bg)"; t.style.color="var(--"+tn+")"; return t; }
+function td(cls, text){ const e=document.createElement("td"); e.className=cls; e.textContent=text; return e; }
+function th(text, cls, title){ const e=document.createElement("th"); if (cls) e.className=cls; e.textContent=text; if (title) e.title=title; return e; }
 
-function render(){
-  const box = $("#classTable");
+/* ---------- версия ---------- */
+for (const [k,tr] of Object.entries(TRACKS)){
+  $("#trackSeg").append(ui.el("button", {type:"button", "data-t":k, "aria-pressed": String(k===curTrack), text: tr.long, onclick: ()=>{ curTrack=k; sessionStorage.setItem("ege-teacher-track", k); picked=null; panelExam=null; avgExam=null; $("#studentPanel").innerHTML=""; syncTrack(); }}));
+}
+function syncTrack(){
+  $("#trackSeg").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.t===curTrack)));
+  $("#progTitle").textContent = "Чек-листы: "+TRACKS[curTrack].long;
+  $("#mocksTitle").textContent = (curTrack==="school" ? "ВПР и проверочные: " : "Пробники: ")+TRACKS[curTrack].long;
+  $("#t-mocks").textContent = curTrack==="school" ? "ВПР" : "Пробники";
+  renderProgress();
+  if (!$("#p-mocks").hidden) renderMocks();
+  if (!$("#p-files").hidden) loadFiles();
+}
+
+/* ---------- вкладки ---------- */
+const TABS = ["progress","mocks","files"];
+function showTab(name){
+  if (!TABS.includes(name)) name="progress";
+  for (const t of TABS){ $("#t-"+t).setAttribute("aria-selected", String(t===name)); $("#p-"+t).hidden = t!==name; }
+  history.replaceState(null, "", "#"+name);
+  if (name==="mocks") loadMocks();
+  if (name==="files") loadFiles();
+}
+for (const t of TABS) $("#t-"+t).addEventListener("click", ()=>showTab(t));
+
+/* ---------- чек-листы ---------- */
+async function loadProgress(){
+  const r = await api("/api/progress", {headers:H()});
+  if (!r.ok) throw new Error(String(r.status));
+  progress = (await r.json()).students || [];
+  for (const p of progress) info[p.id] = {name: p.name||"", grade: p.grade||null};
+}
+function renderProgress(){
+  const box = $("#classTable"), tr = TRACKS[curTrack];
+  const rows = progress.filter(p=>trackOfStudent(p.id)===curTrack).sort((a,b)=>display(a.id).localeCompare(display(b.id),"ru"));
   $("#classCount").textContent = rows.length ? "Учеников: "+rows.length : "";
-  if (!rows.length){ box.innerHTML = '<div class="empty">Пока никто не отметил ни одного пункта. Отправьте ученикам ссылку на главную страницу сайта — их строки появятся здесь.</div>'; return; }
-  rows.sort((a,b)=>display(a).localeCompare(display(b),"ru"));
-  const tbl=document.createElement("table");
-  const thead=document.createElement("thead"); const hr=document.createElement("tr");
-  const th0=document.createElement("th"); th0.className="name"; th0.textContent="Ученик"; hr.appendChild(th0);
-  for (const t of T){ const th=document.createElement("th"); th.textContent=t.n; th.title=t.t; hr.appendChild(th); }
-  const tht=document.createElement("th"); tht.className="total"; tht.textContent="Всего"; hr.appendChild(tht);
-  hr.appendChild(document.createElement("th"));
-  thead.appendChild(hr); tbl.appendChild(thead);
-  const tb=document.createElement("tbody"); const sums=T.map(()=>0);
+  if (!rows.length){ box.innerHTML = '<div class="empty">В этой версии пока нет учеников. Они появятся, когда откроют сайт, впишут имя и выберут свой класс.</div>'; return; }
+  const tbl=document.createElement("table"), thead=document.createElement("thead"), hr=document.createElement("tr");
+  hr.append(th("Ученик","name"), th("Класс"));
+  tr.units.forEach((u,i)=>hr.append(th(curTrack==="school" ? String(i+1) : u.label, null, u.t)));
+  hr.append(th("Всего","total"), th(""));
+  thead.append(hr); tbl.append(thead);
+  const tb=document.createElement("tbody"), sums=tr.units.map(()=>0);
   for (const r of rows){
-    const tr=document.createElement("tr");
-    const tdn=document.createElement("td"); tdn.className="name"; tdn.textContent=display(r);
-    const d=new Date(r.updated); tdn.title="Код "+r.id+(isNaN(d)?"":", обновлено "+d.toLocaleString("ru-RU"));
-    tr.appendChild(tdn);
-    T.forEach((t,k)=>{ const p=pctOf(r.checks,t); sums[k]+=p; tr.appendChild(cell(p)); });
-    const tdt=document.createElement("td"); tdt.className="total"; tdt.textContent=totals(r.checks).avg+"%"; tr.appendChild(tdt);
-    const tdd=document.createElement("td"); tdd.className="del"; const b=document.createElement("button"); b.type="button"; b.textContent="Удалить"; b.setAttribute("aria-label","Удалить строку: "+display(r));
-    b.addEventListener("click", async ()=>{ if (!confirm("Удалить прогресс ученика «"+display(r)+"»? Это нельзя отменить.")) return; const x=await fetch(API+"?id="+encodeURIComponent(r.id),{method:"DELETE",headers:{"x-teacher-pin":pin}}); if (x.ok) refresh(); else alert("Не удалось удалить. Попробуйте ещё раз."); });
-    tdd.appendChild(b); tr.appendChild(tdd);
-    tb.appendChild(tr);
+    const ch = normChecks(r.checks)[curTrack] || {};
+    const row=document.createElement("tr");
+    const tdn=td("name", display(r.id)); const d=new Date(r.updated); tdn.title="Код "+r.id+(isNaN(d)?"":", обновлено "+d.toLocaleString("ru-RU"));
+    row.append(tdn, td("num", gradeLabel(r.id)));
+    tr.units.forEach((u,k)=>{ const p=unitPct(ch,u); sums[k]+=p; row.append(cell(p)); });
+    row.append(td("total", trackTotals(curTrack, ch).avg+"%"));
+    const tdd=td("del",""); const b=ui.el("button", {type:"button", text:"Удалить", "aria-label":"Удалить строку: "+display(r.id), onclick: async ()=>{
+      if (!confirm("Удалить прогресс ученика «"+display(r.id)+"»? Результаты пробников останутся.")) return;
+      const x=await api("/api/progress?id="+encodeURIComponent(r.id),{method:"DELETE",headers:H()}); if (x.ok) refreshProgress(); else alert("Не удалось удалить. Попробуйте ещё раз."); }});
+    tdd.append(b); row.append(tdd); tb.append(row);
   }
   const ar=document.createElement("tr"); ar.className="avg";
-  const tda=document.createElement("td"); tda.className="name"; tda.textContent="Среднее по классу"; ar.appendChild(tda);
-  let all=0; sums.forEach(s=>{ const p=Math.round(s/rows.length); all+=p; ar.appendChild(cell(p)); });
-  const tdat=document.createElement("td"); tdat.className="total"; tdat.textContent=Math.round(all/T.length)+"%"; ar.appendChild(tdat);
-  ar.appendChild(document.createElement("td"));
-  tb.appendChild(ar); tbl.appendChild(tb);
-  box.innerHTML=""; box.appendChild(tbl);
+  ar.append(td("name","Среднее по группе"), td("",""));
+  let all=0; sums.forEach(s=>{ const p=Math.round(s/rows.length); all+=p; ar.append(cell(p)); });
+  ar.append(td("total", Math.round(all/tr.units.length)+"%"), td("",""));
+  tb.append(ar); tbl.append(tb);
+  box.innerHTML=""; box.append(tbl);
+  if (curTrack==="school"){ $("#progNote").textContent = "Номера столбцов — темы: "+tr.units.map((u,i)=>(i+1)+" — "+u.t).join("; ")+"."; }
+  else $("#progNote").textContent = "Нижняя строка — среднее по группе. Наведите на имя, чтобы увидеть код ученика и время обновления, на номер столбца — название задания. Таблица обновляется сама раз в 30 секунд.";
 }
-async function refresh(){
-  try { rows = await fetchAll(); render(); }
-  catch(e){ if (e.pin){ logout("Неверный пароль."); } else { $("#classCount").textContent = "Нет связи с сервером, повторю через 30 секунд."; } }
+async function refreshProgress(){
+  try { await loadProgress(); renderProgress(); }
+  catch(e){ if (e.message!=="pin") $("#classCount").textContent = "Нет связи с сервером, повторю через 30 секунд."; }
 }
+$("#refresh").addEventListener("click", refreshProgress);
+$("#csv").addEventListener("click", ()=>{
+  const tr = TRACKS[curTrack], q = v => '"'+String(v).replace(/"/g,'""')+'"';
+  const head = ["Ученик","Код","Класс"].concat(tr.units.map(u=>(curTrack==="school"?"":"Задание ")+u.label+(curTrack==="school"?" — "+u.t:"")),["Всего, %","Обновлено"]);
+  const lines = [head.map(q).join(";")];
+  for (const r of progress.filter(p=>trackOfStudent(p.id)===curTrack)){
+    const ch = normChecks(r.checks)[curTrack] || {};
+    lines.push([display(r.id), r.id, (info[r.id]&&info[r.id].grade)||""].concat(tr.units.map(u=>unitPct(ch,u)), [trackTotals(curTrack, ch).avg, r.updated||""]).map(q).join(";"));
+  }
+  const blob = new Blob(["\ufeff"+lines.join("\r\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "chek-listy-"+curTrack+".csv"; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+});
+
+/* ---------- пробники ---------- */
+async function loadMocks(){
+  try {
+    const [r] = await Promise.all([api("/api/mocks", {headers:H()}), loadProgress().catch(()=>{})]);
+    if (!r.ok) throw 0;
+    mockRecs = (await r.json()).students || [];
+    renderMocks();
+  } catch(e){ if (e && e.message==="pin") return; $("#mocksTable").innerHTML = '<div class="empty">Не удалось загрузить результаты. Обновите страницу.</div>'; }
+}
+const itemsOf = id => { const r = mockRecs.find(x=>x.id===id); return r ? r.items : []; };
+const trackItems = id => itemsOf(id).filter(it=>TRACKS[curTrack].exams.includes(ui.examOf(it)));
+function examSelector(box, cur, set){
+  const ex = TRACKS[curTrack].exams; box.innerHTML=""; box.hidden = ex.length<2;
+  for (const k of ex) box.append(ui.el("button", {type:"button", "aria-pressed": String(k===cur), text: EXAMS[k].title, onclick: ()=>set(k)}));
+}
+function renderMocks(){
+  const ex = TRACKS[curTrack].exams;
+  const ids = new Set(progress.map(p=>p.id).filter(id=>trackOfStudent(id)===curTrack));
+  for (const m of mockRecs) if (m.items && m.items.some(it=>ex.includes(ui.examOf(it)))) ids.add(m.id);
+  const list = [...ids].sort((a,b)=>display(a).localeCompare(display(b),"ru"));
+  const box = $("#mocksTable");
+  if (!avgExam || !ex.includes(avgExam)) avgExam = ex[0];
+  examSelector($("#avgSel"), avgExam, k=>{ avgExam=k; renderMocks(); });
+  if (!list.length){ box.innerHTML = '<div class="empty">В этой версии пока нет учеников.</div>'; ui.taskAverages($("#classAvg"), [], avgExam); return; }
+  const tbl=document.createElement("table");
+  tbl.innerHTML = '<thead><tr><th class="name">Ученик</th><th>Класс</th><th>Результатов</th><th>Последний</th><th>Работа</th><th>Балл</th><th>Лучший</th><th>Рост</th></tr></thead>';
+  const tb=document.createElement("tbody"), latest=[];
+  for (const id of list){
+    const items = trackItems(id), last = items[items.length-1];
+    const sameExam = last ? items.filter(it=>ui.examOf(it)===ui.examOf(last)) : [];
+    const lastOf = itemsOf(id).filter(it=>ui.examOf(it)===avgExam).pop(); if (lastOf) latest.push(lastOf);
+    const row=document.createElement("tr"); row.className="pick"+(picked===id?" on":""); row.tabIndex=0;
+    row.append(td("name", display(id)), td("num", gradeLabel(id)), td("num", items.length), td("num", last ? ui.fmtDate(last.date) : "—"), td("num", last ? EXAMS[ui.examOf(last)].title : "—"));
+    if (last){ const s=ui.total(last.scores), mx=ui.maxOf(ui.examOf(last)); row.append(cell(Math.round(s*100/mx), s+"/"+mx)); } else row.append(td("num","—"));
+    row.append(td("num", sameExam.length ? Math.max(...sameExam.map(i=>ui.total(i.scores))) : "—"));
+    const g = sameExam.length>1 ? ui.total(last.scores)-ui.total(sameExam[0].scores) : null;
+    row.append(td("num", g==null ? "—" : (g>0?"+":"")+g));
+    const open = ()=>{ picked=id; panelExam=null; renderMocks(); $("#studentPanel").scrollIntoView({behavior:"smooth", block:"start"}); };
+    row.addEventListener("click", open); row.addEventListener("keydown", e=>{ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); open(); } });
+    tb.append(row);
+  }
+  tbl.append(tb); box.innerHTML=""; box.append(tbl);
+  ui.taskAverages($("#classAvg"), latest, avgExam);
+  if (picked) renderStudent();
+}
+function renderStudent(){
+  const box = $("#studentPanel"); box.innerHTML = "";
+  if (!picked) return;
+  const id = picked, ex = TRACKS[curTrack].exams, all = trackItems(id);
+  if (!panelExam || !ex.includes(panelExam)){ const g = info[id] && info[id].grade; panelExam = ex.length>1 ? (g===7 ? "vpr7" : "vpr6") : ex[0]; }
+  const items = all.filter(it=>ui.examOf(it)===panelExam);
+  const formBox = ui.el("div", {}), sel = ui.el("div", {class:"exsel", style:"margin-top:14px"});
+  examSelector(sel, panelExam, k=>{ panelExam=k; renderStudent(); });
+  const head = ui.el("div", {class:"panel-head"},
+    ui.el("div", {}, ui.el("h2", {text: display(id)}), ui.el("p", {text: gradeLabel(id).replace("кл.","класс")+", код "+id+". Записи ученика отмечены «внесено учеником», ваши — «внёс учитель». Править можно любые."})),
+    ui.el("button", {class:"btn", type:"button", text:"Внести результат", onclick: ()=>form(null)}));
+  const chartBox = ui.el("div", {}), avgBox = ui.el("div", {}), listBox = ui.el("div", {});
+  box.append(head, sel, formBox,
+    ui.el("div", {class:"card box"}, ui.el("h3", {text:"Как растёт балл: "+EXAMS[panelExam].title}), chartBox),
+    ui.el("div", {class:"card box"}, ui.el("h3", {text:"Задания в среднем: "+EXAMS[panelExam].title}), avgBox), listBox);
+  ui.chart(chartBox, items, panelExam); ui.taskAverages(avgBox, items, panelExam);
+  ui.mockList(listBox, items, {
+    emptyText: "У ученика пока нет результатов этого типа.",
+    canEdit: ()=>true, onEdit: it=>form(it),
+    onDelete: async it=>{
+      if (!confirm("Удалить результат от "+ui.fmtDate(it.date)+"?")) return;
+      const r = await api("/api/mocks?id="+id+"&mid="+encodeURIComponent(it.mid), {method:"DELETE", headers:H()});
+      if (r.ok) loadMocks(); else alert("Не удалось удалить.");
+    }
+  });
+  function form(item){
+    ui.mockForm(formBox, {
+      initial:item, exam: panelExam, submitLabel: item ? "Сохранить изменения" : "Сохранить результат",
+      onCancel: ()=>{ formBox.innerHTML=""; },
+      onSubmit: async m=>{
+        const r = await api("/api/mocks", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: JSON.stringify({id, mock:m})});
+        if (!r.ok) throw new Error("Не удалось сохранить. Попробуйте ещё раз.");
+        formBox.innerHTML=""; await loadMocks();
+      }
+    });
+    formBox.scrollIntoView({behavior:"smooth", block:"start"});
+  }
+}
+
+/* ---------- раздатки ---------- */
+for (const t of ["Общее","Орфография","Пунктуация","Лексика","Морфология","Синтаксис","Текст","Изложение","Сочинение","ВПР","Тренировочные варианты"]) $("#topics").append(ui.el("option", {value:t}));
+for (const [k,tr] of Object.entries(TRACKS)) $("#upTracks").append(ui.el("label", {}, ui.el("input", {type:"checkbox", value:k}), tr.long));
+async function loadFiles(){
+  try {
+    const r = await fetch("/api/files?track="+curTrack); if (!r.ok) throw 0;
+    const files = (await r.json()).items || [];
+    $("#filesNote").textContent = "Показаны раздатки, которые видят ученики версии «"+TRACKS[curTrack].long+"», включая общие для всех.";
+    ui.filesList($("#filesBox"), files, {showTracks:true, emptyText:"Для этой версии раздаток пока нет. Добавьте первую с помощью формы выше.", onDelete: async it=>{
+      if (!confirm("Удалить «"+it.title+"»? Ученики больше не смогут её открыть.")) return;
+      const x = await api("/api/files?fid="+encodeURIComponent(it.fid), {method:"DELETE", headers:H()});
+      if (x.ok) loadFiles(); else alert("Не удалось удалить.");
+    }});
+  } catch(e){ $("#filesBox").innerHTML = '<div class="card empty">Не удалось загрузить список раздаток.</div>'; }
+}
+const TYPES = {pdf:"application/pdf", png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg",
+  docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"};
+$("#upForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const err = $("#upErr"), btn = $("#upBtn"); err.textContent = "";
+  const file = $("#upFile").files[0], url = $("#upUrl").value.trim();
+  const title = $("#upTitle").value.trim(), topic = $("#upTopic").value.trim() || "Общее";
+  const tracks = [...document.querySelectorAll("#upTracks input:checked")].map(i=>i.value);
+  if (!file && !url){ err.textContent = "Выберите файл или вставьте ссылку."; return; }
+  let r;
+  btn.disabled = true; btn.textContent = "Загружаю…";
+  try {
+    if (file){
+      const ext = (file.name.split(".").pop()||"").toLowerCase(), type = TYPES[ext];
+      if (!type){ err.textContent = "Такой формат не подходит. Можно PDF, Word, PowerPoint, Excel, PNG или JPG."; return; }
+      if (file.size > 4.5*1024*1024){ err.textContent = "Файл больше 4,5 МБ. Сожмите PDF или загрузите его на Яндекс Диск и вставьте ссылку."; return; }
+      r = await api("/api/files", {method:"POST", headers:{...H(), "Content-Type":type, "x-file-name":encodeURIComponent(file.name), "x-title":encodeURIComponent(title), "x-topic":encodeURIComponent(topic), "x-tracks":tracks.join(",")}, body:file});
+    } else {
+      r = await api("/api/files", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: JSON.stringify({url, title, topic, tracks})});
+    }
+    if (!r.ok){ err.textContent = r.status===413 ? "Файл слишком большой." : r.status===400 ? "Проверьте ссылку: она должна начинаться с https://" : "Не удалось добавить. Попробуйте ещё раз."; return; }
+    $("#upForm").reset(); loadFiles();
+  } catch(ex){ if (ex.message!=="pin") err.textContent = "Нет связи с сервером. Попробуйте ещё раз."; }
+  finally { btn.disabled = false; btn.textContent = "Добавить"; }
+});
+
+/* ---------- вход ---------- */
 function start(){
-  $("#pinForm").hidden = true; $("#board").hidden = false;
-  refresh(); clearInterval(timer); timer = setInterval(refresh, 30000);
+  $("#pinForm").hidden = true; $("#app").hidden = false;
+  syncTrack();
+  showTab((location.hash||"").slice(1) || "progress");
+  refreshProgress(); clearInterval(timer); timer = setInterval(()=>{ if (!$("#p-progress").hidden) refreshProgress(); }, 30000);
 }
 function logout(msg){
   clearInterval(timer); pin=""; sessionStorage.removeItem("ege-teacher-pin");
-  $("#board").hidden = true; $("#pinForm").hidden = false; $("#pinErr").textContent = msg||""; $("#pin").value=""; $("#pin").focus();
+  $("#app").hidden = true; $("#pinForm").hidden = false; $("#pinErr").textContent = msg||""; $("#pin").value=""; $("#pin").focus();
 }
 $("#pinForm").addEventListener("submit", async e=>{
   e.preventDefault(); pin = $("#pin").value; $("#pinErr").textContent="";
-  try { rows = await fetchAll(); sessionStorage.setItem("ege-teacher-pin", pin); start(); }
-  catch(err){ $("#pinErr").textContent = err.pin ? "Неверный пароль." : "Нет связи с сервером. Попробуйте ещё раз."; }
+  try { const r = await fetch("/api/progress", {headers:H()}); if (r.status===401){ $("#pinErr").textContent="Неверный пароль."; return; } if (!r.ok) throw 0; sessionStorage.setItem("ege-teacher-pin", pin); start(); }
+  catch(err){ $("#pinErr").textContent = "Нет связи с сервером. Попробуйте ещё раз."; }
 });
-$("#refresh").addEventListener("click", refresh);
 $("#logout").addEventListener("click", ()=>logout(""));
-$("#csv").addEventListener("click", ()=>{
-  const q = v => '"'+String(v).replace(/"/g,'""')+'"';
-  const head = ["Ученик","Код"].concat(T.map(t=>"Задание "+t.n),["Всего, %","Обновлено"]);
-  const lines = [head.map(q).join(";")];
-  for (const r of rows) lines.push([display(r), r.id].concat(T.map(t=>pctOf(r.checks,t)), [totals(r.checks).avg, r.updated||""]).map(q).join(";"));
-  const blob = new Blob(["\ufeff"+lines.join("\r\n")], {type:"text/csv;charset=utf-8"});
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "progress-ege-russkiy.csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
-});
 if (pin) start();
 })();
 </script>

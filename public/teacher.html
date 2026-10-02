@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Прогресс класса — ЕГЭ по русскому</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="stripe" aria-hidden="true"></div>
+  <h1>Прогресс класса</h1>
+  <p class="lead">Отметки учеников по 27 заданиям ЕГЭ. Таблица обновляется сама раз в 30 секунд.</p>
+
+  <form class="card pinbox" id="pinForm">
+    <label for="pin" class="small">Пароль учителя</label>
+    <input id="pin" type="password" autocomplete="current-password" required>
+    <div class="err" id="pinErr" aria-live="polite"></div>
+    <button class="btn" type="submit">Открыть таблицу</button>
+  </form>
+
+  <section id="board" hidden>
+    <div class="card class-wrap">
+      <div class="class-head">
+        <h2>Ученики</h2>
+        <div class="row">
+          <span class="note" id="classCount" style="margin:0"></span>
+          <button class="btn ghost" type="button" id="refresh">Обновить</button>
+          <button class="btn ghost" type="button" id="csv">Скачать CSV</button>
+          <button class="btn ghost" type="button" id="logout">Выйти</button>
+        </div>
+      </div>
+      <div class="scroller" id="classTable"></div>
+      <p class="note">Нижняя строка — среднее по классу: самые светлые клетки подсказывают, какие задания разобрать на уроке. Наведите на имя, чтобы увидеть время последнего обновления и код ученика. Кнопка «Удалить» убирает лишние или тестовые строки.</p>
+    </div>
+  </section>
+</div>
+
+<script src="/tasks.js"></script>
+<script>
+(function(){
+"use strict";
+const {T, pctOf, totals, tone} = window.EGE;
+const API = "/api/progress";
+const $ = s => document.querySelector(s);
+let pin = sessionStorage.getItem("ege-teacher-pin") || "";
+let rows = [], timer = null;
+
+async function fetchAll(){
+  const r = await fetch(API, {headers:{"x-teacher-pin": pin}});
+  if (r.status===401) throw Object.assign(new Error("pin"), {pin:true});
+  if (!r.ok) throw new Error(String(r.status));
+  return (await r.json()).students || [];
+}
+function cell(p){ const td=document.createElement("td"); td.className="c"; td.textContent=p; const tn=tone(p); td.style.background="var(--"+tn+"-bg)"; td.style.color="var(--"+tn+")"; return td; }
+function display(r){ return (r.name||"").trim() || "Без имени ("+r.id+")"; }
+
+function render(){
+  const box = $("#classTable");
+  $("#classCount").textContent = rows.length ? "Учеников: "+rows.length : "";
+  if (!rows.length){ box.innerHTML = '<div class="empty">Пока никто не отметил ни одного пункта. Отправьте ученикам ссылку на главную страницу сайта — их строки появятся здесь.</div>'; return; }
+  rows.sort((a,b)=>display(a).localeCompare(display(b),"ru"));
+  const tbl=document.createElement("table");
+  const thead=document.createElement("thead"); const hr=document.createElement("tr");
+  const th0=document.createElement("th"); th0.className="name"; th0.textContent="Ученик"; hr.appendChild(th0);
+  for (const t of T){ const th=document.createElement("th"); th.textContent=t.n; th.title=t.t; hr.appendChild(th); }
+  const tht=document.createElement("th"); tht.className="total"; tht.textContent="Всего"; hr.appendChild(tht);
+  hr.appendChild(document.createElement("th"));
+  thead.appendChild(hr); tbl.appendChild(thead);
+  const tb=document.createElement("tbody"); const sums=T.map(()=>0);
+  for (const r of rows){
+    const tr=document.createElement("tr");
+    const tdn=document.createElement("td"); tdn.className="name"; tdn.textContent=display(r);
+    const d=new Date(r.updated); tdn.title="Код "+r.id+(isNaN(d)?"":", обновлено "+d.toLocaleString("ru-RU"));
+    tr.appendChild(tdn);
+    T.forEach((t,k)=>{ const p=pctOf(r.checks,t); sums[k]+=p; tr.appendChild(cell(p)); });
+    const tdt=document.createElement("td"); tdt.className="total"; tdt.textContent=totals(r.checks).avg+"%"; tr.appendChild(tdt);
+    const tdd=document.createElement("td"); tdd.className="del"; const b=document.createElement("button"); b.type="button"; b.textContent="Удалить"; b.setAttribute("aria-label","Удалить строку: "+display(r));
+    b.addEventListener("click", async ()=>{ if (!confirm("Удалить прогресс ученика «"+display(r)+"»? Это нельзя отменить.")) return; const x=await fetch(API+"?id="+encodeURIComponent(r.id),{method:"DELETE",headers:{"x-teacher-pin":pin}}); if (x.ok) refresh(); else alert("Не удалось удалить. Попробуйте ещё раз."); });
+    tdd.appendChild(b); tr.appendChild(tdd);
+    tb.appendChild(tr);
+  }
+  const ar=document.createElement("tr"); ar.className="avg";
+  const tda=document.createElement("td"); tda.className="name"; tda.textContent="Среднее по классу"; ar.appendChild(tda);
+  let all=0; sums.forEach(s=>{ const p=Math.round(s/rows.length); all+=p; ar.appendChild(cell(p)); });
+  const tdat=document.createElement("td"); tdat.className="total"; tdat.textContent=Math.round(all/T.length)+"%"; ar.appendChild(tdat);
+  ar.appendChild(document.createElement("td"));
+  tb.appendChild(ar); tbl.appendChild(tb);
+  box.innerHTML=""; box.appendChild(tbl);
+}
+async function refresh(){
+  try { rows = await fetchAll(); render(); }
+  catch(e){ if (e.pin){ logout("Неверный пароль."); } else { $("#classCount").textContent = "Нет связи с сервером, повторю через 30 секунд."; } }
+}
+function start(){
+  $("#pinForm").hidden = true; $("#board").hidden = false;
+  refresh(); clearInterval(timer); timer = setInterval(refresh, 30000);
+}
+function logout(msg){
+  clearInterval(timer); pin=""; sessionStorage.removeItem("ege-teacher-pin");
+  $("#board").hidden = true; $("#pinForm").hidden = false; $("#pinErr").textContent = msg||""; $("#pin").value=""; $("#pin").focus();
+}
+$("#pinForm").addEventListener("submit", async e=>{
+  e.preventDefault(); pin = $("#pin").value; $("#pinErr").textContent="";
+  try { rows = await fetchAll(); sessionStorage.setItem("ege-teacher-pin", pin); start(); }
+  catch(err){ $("#pinErr").textContent = err.pin ? "Неверный пароль." : "Нет связи с сервером. Попробуйте ещё раз."; }
+});
+$("#refresh").addEventListener("click", refresh);
+$("#logout").addEventListener("click", ()=>logout(""));
+$("#csv").addEventListener("click", ()=>{
+  const q = v => '"'+String(v).replace(/"/g,'""')+'"';
+  const head = ["Ученик","Код"].concat(T.map(t=>"Задание "+t.n),["Всего, %","Обновлено"]);
+  const lines = [head.map(q).join(";")];
+  for (const r of rows) lines.push([display(r), r.id].concat(T.map(t=>pctOf(r.checks,t)), [totals(r.checks).avg, r.updated||""]).map(q).join(";"));
+  const blob = new Blob(["\ufeff"+lines.join("\r\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "progress-ege-russkiy.csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+});
+if (pin) start();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ЕГЭ по русскому — чек-лист подготовки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="stripe" aria-hidden="true"></div>
+
+  <div class="top">
+    <div>
+      <h1>ЕГЭ по русскому: что я уже умею</h1>
+      <p class="lead">Отмечай пункты, которые точно освоил. Процент по каждому заданию считается сам, а карта сверху показывает, куда стоит направить силы.</p>
+    </div>
+    <div class="ring" aria-live="polite">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9152"/><stop offset=".4" stop-color="#f5638f"/><stop offset=".75" stop-color="#8b8cff"/><stop offset="1" stop-color="#4fc3f0"/></linearGradient></defs>
+        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--track)" stroke-width="12"/>
+        <circle id="ringArc" cx="60" cy="60" r="50" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
+      </svg>
+      <div class="num"><b id="totalPct">0%</b><span id="totalPts">0 из 50 баллов</span></div>
+    </div>
+  </div>
+
+  <main>
+    <div class="card me">
+      <label for="name">Имя и фамилия (их увидит учитель)
+        <input id="name" autocomplete="name" placeholder="Например, Аня Смирнова">
+      </label>
+      <div class="status" id="status" aria-live="polite">Загружаю…</div>
+    </div>
+    <div class="card me" style="margin-top:10px">
+      <div class="small" style="flex:1 1 300px">Твой код: <span class="code" id="code">—</span>. Запиши его: с ним можно продолжить на другом телефоне или компьютере.</div>
+      <button class="linkbtn" type="button" id="haveCode">У меня уже есть код</button>
+    </div>
+    <div class="card pinbox" id="restoreBox" hidden>
+      <label for="restore" class="small">Введи код с другого устройства</label>
+      <input id="restore" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Например, K7MP2QXA" maxlength="8">
+      <div class="err" id="restoreErr"></div>
+      <div class="row"><button class="btn" type="button" id="restoreBtn">Продолжить с этим кодом</button><button class="btn ghost" type="button" id="restoreCancel">Отмена</button></div>
+    </div>
+
+    <section class="card map" aria-labelledby="mapTitle">
+      <div class="map-head">
+        <h2 id="mapTitle">Карта экзамена</h2>
+        <div class="legend">
+          <span><i style="background:var(--pink)"></i>до 25%</span>
+          <span><i style="background:var(--orange)"></i>25–49%</span>
+          <span><i style="background:var(--violet)"></i>50–74%</span>
+          <span><i style="background:var(--sky)"></i>75–100%</span>
+        </div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+    </section>
+
+    <div id="sections"></div>
+  </main>
+
+  <footer>
+    Номера, названия и баллы заданий — по спецификации и <a href="https://doc.fipi.ru/navigator-podgotovki/navigator-ege/MR_rus_yaz_ege_2026.pdf">методическим рекомендациям ФИПИ 2026</a>. «В среднем решают» — средний процент выполнения задания на ЕГЭ 2025 по данным ФИПИ.
+  </footer>
+</div>
+
+<script src="/tasks.js"></script>
+<script>
+(function(){
+"use strict";
+const {T, BLOCKS, CARDS, pctOf, totals, tone} = window.EGE;
+const API = "/api/progress";
+const LS = "ege-ru-checklist-v1";
+const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const $ = s => document.querySelector(s);
+
+function newCode(){ const a = new Uint8Array(8); crypto.getRandomValues(a); let s=""; for (const b of a) s += ALPH[b % ALPH.length]; return s; }
+let state = {id:"", name:"", checks:{}, updated:0};
+try { const raw = localStorage.getItem(LS); if (raw){ const s = JSON.parse(raw); if (s && typeof s==="object") state = {id:s.id||"", name:s.name||"", checks:s.checks||{}, updated:+s.updated||0}; } } catch(e) {}
+if (!/^[A-Z2-9]{8}$/.test(state.id)) state.id = newCode();
+function keep(){ try { localStorage.setItem(LS, JSON.stringify(state)); } catch(e) {} }
+keep();
+
+const pct = n => pctOf(state.checks, T.find(x=>x.n===n));
+
+// ---- build UI ----
+const tiles = $("#tiles"), sections = $("#sections");
+for (const t of T){
+  const b = document.createElement("button");
+  b.type="button"; b.className="tile"; b.id="tile"+t.n;
+  b.innerHTML = '<span class="fill"></span><span class="n"></span><span class="p"></span>';
+  b.querySelector(".n").textContent = t.n;
+  b.setAttribute("aria-label", "Задание "+t.n+": "+t.t);
+  b.addEventListener("click", ()=>{ const d = document.getElementById("task"+t.n); d.open = true; d.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"}); d.querySelector("summary").focus({preventScroll:true}); });
+  tiles.appendChild(b);
+}
+for (const bl of BLOCKS){
+  const sec = document.createElement("section"); sec.className="section"; sec.setAttribute("aria-labelledby", bl.id);
+  const h = document.createElement("h2"); h.id = bl.id; h.textContent = bl.title; sec.appendChild(h);
+  const p = document.createElement("p"); p.textContent = bl.sub; sec.appendChild(p);
+  for (const t of T.filter(x=>x.n>=bl.from && x.n<=bl.to)){
+    const d = document.createElement("details"); d.className="task card"; d.id="task"+t.n;
+    const sm = document.createElement("summary");
+    const meta = (t.pts===1?"1 балл":t.pts===22?"до 22 баллов":t.pts+" балла") + (t.avg!=null ? ", в среднем решают "+t.avg+"%" : "");
+    sm.innerHTML = '<span class="badge"></span><span><span class="ttl"></span><span class="meta"></span><span class="bar"><span></span></span></span><span class="pct"><span class="v">0%</span><span class="chev" aria-hidden="true">▶</span></span>';
+    sm.querySelector(".badge").textContent = t.n;
+    sm.querySelector(".ttl").textContent = t.t;
+    sm.querySelector(".meta").textContent = meta;
+    d.appendChild(sm);
+    const box = document.createElement("div"); box.className="items";
+    t.i.forEach((txt,j)=>{
+      const lab = document.createElement("label"); lab.className="item";
+      const cb = document.createElement("input"); cb.type="checkbox"; cb.dataset.j=j;
+      const sp = document.createElement("span"); sp.textContent = txt;
+      lab.appendChild(cb); lab.appendChild(sp); box.appendChild(lab);
+      cb.addEventListener("change", ()=>{ const arr = (state.checks[t.n]||[]).slice(); while (arr.length<t.i.length) arr.push(false); arr[j]=cb.checked; state.checks[t.n]=arr; changed(); });
+    });
+    if (t.card && CARDS){ const m = document.createElement("p"); m.className="more"; m.innerHTML = '<a target="_blank" rel="noopener">Карточка с исключениями и словами</a>'; m.querySelector("a").href = CARDS; box.appendChild(m); }
+    d.appendChild(box); sec.appendChild(d);
+  }
+  sections.appendChild(sec);
+}
+
+function render(){
+  for (const t of T){
+    const p = pct(t.n), tn = tone(p);
+    const tile = document.getElementById("tile"+t.n);
+    const fill = tile.querySelector(".fill"); fill.style.height = p+"%"; fill.style.background = "var(--"+tn+"-bg)";
+    tile.style.borderColor = p>0 ? "var(--"+tn+")" : "var(--line)";
+    const pp = tile.querySelector(".p"); pp.textContent = p+"%"; pp.style.color = p>0 ? "var(--"+tn+")" : "var(--ink-2)";
+    const d = document.getElementById("task"+t.n);
+    const v = d.querySelector(".pct .v"); v.textContent = p+"%"; v.style.color = p>0 ? "var(--"+tn+")" : "var(--ink-2)";
+    const bar = d.querySelector(".bar > span"); bar.style.width = p+"%"; bar.style.background = "var(--"+tn+")";
+    const c = state.checks[t.n]||[];
+    d.querySelectorAll("input[type=checkbox]").forEach(cb=>{ cb.checked = !!c[+cb.dataset.j]; });
+  }
+  const tot = totals(state.checks);
+  $("#totalPct").textContent = tot.avg+"%";
+  $("#totalPts").textContent = "≈ "+tot.pts+" из 50 баллов";
+  $("#ringArc").setAttribute("stroke-dashoffset", (314.16*(1-tot.avg/100)).toFixed(2));
+  if (document.activeElement !== $("#name")) $("#name").value = state.name;
+  $("#code").textContent = state.id;
+}
+
+// ---- sync with server ----
+let timer=null, saving=false, again=false;
+const setStatus = s => { $("#status").textContent = s; };
+function changed(){ state.updated = Date.now(); keep(); render(); clearTimeout(timer); timer = setTimeout(save, 800); setStatus("Сохраняю…"); }
+async function save(){
+  if (saving){ again=true; return; }
+  saving=true;
+  try {
+    const r = await fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({id:state.id, name:state.name.trim().slice(0,80), checks:state.checks})});
+    if (!r.ok) throw new Error(String(r.status));
+    setStatus(state.name.trim() ? "Сохранено. Учитель видит твой прогресс." : "Сохранено. Впиши имя, чтобы учитель понял, чей это прогресс.");
+  } catch(e){
+    setStatus("Нет связи с сервером. Отметки сохранены на этом устройстве и отправятся позже.");
+    setTimeout(()=>{ if (!saving) save(); }, 15000);
+  } finally { saving=false; if (again){ again=false; save(); } }
+}
+async function load(id){
+  const r = await fetch(API+"?id="+encodeURIComponent(id));
+  if (r.status===404) return null;
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+}
+$("#name").addEventListener("input", e=>{ state.name = e.target.value; changed(); });
+
+// restore by code
+$("#haveCode").addEventListener("click", ()=>{ $("#restoreBox").hidden=false; $("#restore").focus(); });
+$("#restoreCancel").addEventListener("click", ()=>{ $("#restoreBox").hidden=true; $("#restoreErr").textContent=""; });
+$("#restoreBtn").addEventListener("click", async ()=>{
+  const code = $("#restore").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if (!/^[A-Z2-9]{8}$/.test(code)){ $("#restoreErr").textContent = "Код — это 8 латинских букв и цифр, например K7MP2QXA."; return; }
+  try {
+    const d = await load(code);
+    if (!d){ $("#restoreErr").textContent = "Такого кода нет. Проверь, нет ли опечатки."; return; }
+    state = {id:code, name:d.name||"", checks:d.checks||{}, updated:Date.parse(d.updated)||0}; keep(); render();
+    $("#restoreBox").hidden=true; $("#restoreErr").textContent="";
+    setStatus("Готово, продолжаем с кода "+code+".");
+  } catch(e){ $("#restoreErr").textContent = "Нет связи с сервером. Попробуй ещё раз."; }
+});
+
+render();
+(async ()=>{
+  try {
+    const d = await load(state.id);
+    if (d && (Date.parse(d.updated)||0) >= state.updated){ state.checks = d.checks||{}; if (!state.name && d.name) state.name = d.name; state.updated = Date.parse(d.updated)||0; keep(); render(); setStatus("Прогресс загружен. Учитель видит твои отметки."); }
+    else if (d){ save(); }
+    else { setStatus("Отмечай пункты: прогресс сохранится, и его увидит учитель."); if (Object.keys(state.checks).length || state.name) save(); }
+  } catch(e){ setStatus("Нет связи с сервером. Отметки сохраняются на этом устройстве."); }
+})();
+})();
+</script>
+</body>
+</html>

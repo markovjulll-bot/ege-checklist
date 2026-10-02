@@ -1,36 +1,28 @@
 // Хранит отметки учеников в Netlify Blobs.
-// POST /api/progress            — ученик сохраняет свой прогресс {id, name, checks}
+// POST /api/progress            — ученик сохраняет свой прогресс {id, name, grade, checks}
 // GET  /api/progress?id=CODE    — ученик загружает свой прогресс по коду
 // GET  /api/progress            — учитель получает всех (заголовок x-teacher-pin)
 // DELETE /api/progress?id=CODE  — учитель удаляет строку (заголовок x-teacher-pin)
 import { getStore } from "@netlify/blobs";
+import { ID, json, isTeacher, TRACKS, GRADES } from "../lib/shared.mjs";
 
-const ID = /^[A-Z2-9]{8}$/;
-// Сколько пунктов в каждом задании (1–27) — должно совпадать с public/tasks.js
-const ITEMS = [4,4,4,4,3,3,6,4,4,5,5,5,5,5,4,4,4,5,4,3,4,5,3,4,3,4,6];
+const UNIT = /^[A-Za-z0-9_-]{1,12}$/;
 
-const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
-  });
-
-function isTeacher(req) {
-  const pin = Netlify.env.get("TEACHER_PIN") || "";
-  const got = req.headers.get("x-teacher-pin") || "";
-  if (!pin || got.length !== pin.length) return false;
-  let diff = 0;
-  for (let i = 0; i < pin.length; i++) diff |= pin.charCodeAt(i) ^ got.charCodeAt(i);
-  return diff === 0;
-}
-
+// Отметки хранятся по версиям: {ege: {"9": [true,false…]}, oge: {…}, school: {…}}.
+// Старые записи без версий считаются отметками ЕГЭ.
 function cleanChecks(raw) {
   const out = {};
   if (!raw || typeof raw !== "object") return out;
-  for (let n = 1; n <= 27; n++) {
-    const arr = raw[n] ?? raw[String(n)];
-    if (!Array.isArray(arr)) continue;
-    out[n] = Array.from({ length: ITEMS[n - 1] }, (_, j) => arr[j] === true);
+  const src = TRACKS.some((t) => raw[t]) ? raw : { ege: raw };
+  for (const t of TRACKS) {
+    const obj = src[t];
+    if (!obj || typeof obj !== "object") continue;
+    const clean = {};
+    for (const [k, arr] of Object.entries(obj).slice(0, 60)) {
+      if (!UNIT.test(k) || !Array.isArray(arr)) continue;
+      clean[k] = arr.slice(0, 12).map((v) => v === true);
+    }
+    out[t] = clean;
   }
   return out;
 }
@@ -48,6 +40,7 @@ export default async (req) => {
     const record = {
       id: sid,
       name: String(body?.name || "").replace(/\s+/g, " ").trim().slice(0, 80),
+      grade: GRADES.includes(Number(body?.grade)) ? Number(body.grade) : null,
       checks: cleanChecks(body?.checks),
       updated: new Date().toISOString(),
     };

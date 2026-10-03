@@ -89,6 +89,16 @@
       <p class="note" id="filesNote"></p>
       <div id="filesBox"></div>
     </section>
+
+    <section class="card box" style="margin-top:40px" aria-labelledby="bkTitle">
+      <h3 id="bkTitle">Резервная копия и переезд</h3>
+      <p class="small" style="margin:0 0 12px">Копия содержит всех учеников, их отметки, результаты пробников и ссылки-раздатки. Файлы раздаток в копию не входят — после переезда их нужно загрузить заново.</p>
+      <div class="row">
+        <button class="btn ghost" type="button" id="bkDown">Скачать копию</button>
+        <label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Загрузить копию<input type="file" id="bkUp" accept=".json,application/json" class="sr-only"></label>
+        <span class="small" id="bkMsg" aria-live="polite"></span>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -165,7 +175,7 @@ function renderProgress(){
   for (const r of rows){
     const ch = normChecks(r.checks)[curTrack] || {};
     const row=document.createElement("tr");
-    const tdn=td("name", display(r.id)); const d=new Date(r.updated); tdn.title="Код "+r.id+(isNaN(d)?"":", обновлено "+d.toLocaleString("ru-RU"));
+    const tdn=td("name", display(r.id)); const d=new Date(r.updated); tdn.title="Код "+r.id+", личная ссылка: "+location.origin+"/?code="+r.id+(isNaN(d)?"":", обновлено "+d.toLocaleString("ru-RU"));
     row.append(tdn, td("num", gradeLabel(r.id)));
     tr.units.forEach((u,k)=>{ const p=unitPct(ch,u); sums[k]+=p; row.append(cell(p)); });
     row.append(td("total", trackTotals(curTrack, ch).avg+"%"));
@@ -190,11 +200,11 @@ async function refreshProgress(){
 $("#refresh").addEventListener("click", refreshProgress);
 $("#csv").addEventListener("click", ()=>{
   const tr = TRACKS[curTrack], q = v => '"'+String(v).replace(/"/g,'""')+'"';
-  const head = ["Ученик","Код","Класс"].concat(tr.units.map(u=>(curTrack==="school"?"":"Задание ")+u.label+(curTrack==="school"?" — "+u.t:"")),["Всего, %","Обновлено"]);
+  const head = ["Ученик","Код","Личная ссылка","Класс"].concat(tr.units.map(u=>(curTrack==="school"?"":"Задание ")+u.label+(curTrack==="school"?" — "+u.t:"")),["Всего, %","Обновлено"]);
   const lines = [head.map(q).join(";")];
   for (const r of progress.filter(p=>trackOfStudent(p.id)===curTrack)){
     const ch = normChecks(r.checks)[curTrack] || {};
-    lines.push([display(r.id), r.id, (info[r.id]&&info[r.id].grade)||""].concat(tr.units.map(u=>unitPct(ch,u)), [trackTotals(curTrack, ch).avg, r.updated||""]).map(q).join(";"));
+    lines.push([display(r.id), r.id, location.origin+"/?code="+r.id, (info[r.id]&&info[r.id].grade)||""].concat(tr.units.map(u=>unitPct(ch,u)), [trackTotals(curTrack, ch).avg, r.updated||""]).map(q).join(";"));
   }
   const blob = new Blob(["\ufeff"+lines.join("\r\n")], {type:"text/csv;charset=utf-8"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "chek-listy-"+curTrack+".csv"; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
@@ -325,6 +335,30 @@ $("#upForm").addEventListener("submit", async e=>{
     $("#upForm").reset(); loadFiles();
   } catch(ex){ if (ex.message!=="pin") err.textContent = "Нет связи с сервером. Попробуйте ещё раз."; }
   finally { btn.disabled = false; btn.textContent = "Добавить"; }
+});
+
+/* ---------- резервная копия ---------- */
+$("#bkDown").addEventListener("click", async ()=>{
+  $("#bkMsg").textContent = "Готовлю…";
+  try {
+    const r = await api("/api/backup", {headers:H()}); if (!r.ok) throw 0;
+    const blob = await r.blob();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "kabinet-backup-"+new Date().toISOString().slice(0,10)+".json";
+    document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+    $("#bkMsg").textContent = "Копия скачана. Она лежит в папке «Загрузки».";
+  } catch(e){ if (e && e.message==="pin") return; $("#bkMsg").textContent = "Не удалось скачать копию. Попробуйте ещё раз."; }
+});
+$("#bkUp").addEventListener("change", async e=>{
+  const f = e.target.files[0]; if (!f) return;
+  $("#bkMsg").textContent = "Загружаю…";
+  try {
+    const r = await api("/api/backup", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: await f.text()});
+    const j = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(j.error==="not a backup" ? "Это не файл резервной копии кабинета." : "Не удалось загрузить копию.");
+    $("#bkMsg").textContent = "Готово: учеников — "+j.progress+", результатов — "+j.mocks+", ссылок — "+j.links+(j.filesToReupload ? ". Файлов раздаток, которые нужно загрузить заново: "+j.filesToReupload : "")+".";
+    refreshProgress(); if (!$("#p-mocks").hidden) loadMocks(); if (!$("#p-files").hidden) loadFiles();
+  } catch(ex){ if (ex.message!=="pin") $("#bkMsg").textContent = ex.message || "Не удалось загрузить копию."; }
+  finally { e.target.value = ""; }
 });
 
 /* ---------- вход ---------- */

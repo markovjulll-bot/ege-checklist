@@ -341,6 +341,13 @@ function openForm(item){
 function closeForm(){ $("#mockFormBox").innerHTML = ""; $("#addMock").hidden = false; }
 $("#addMock").addEventListener("click", ()=>openForm(null));
 
+/* ---------- вход по личной ссылке ?code=XXXXXXXX ---------- */
+const urlCode = (new URLSearchParams(location.search).get("code")||"").toUpperCase();
+if (/^[A-Z2-9]{8}$/.test(urlCode) && urlCode !== state.id){
+  state = {id:urlCode, name:"", grade:null, checks:{}, updated:0}; keep();
+}
+if (urlCode) history.replaceState(null, "", location.pathname + location.hash);
+
 /* ---------- старт ---------- */
 showCabinet(); buildTrack(); render();
 if (state.grade) showTab((location.hash||"").slice(1) || "check", false);

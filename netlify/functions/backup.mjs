@@ -1,7 +1,8 @@
 // Резервная копия всех данных: для переезда на другой хостинг и на всякий случай.
 // GET  /api/backup  — скачать копию (учитель, x-teacher-pin)
 // POST /api/backup  — загрузить копию: данные объединяются с уже имеющимися
-// Файлы раздаток в копию не входят (только ссылки) — их нужно загрузить заново.
+// В копию входят ученики, отметки, пробники, дневники и ссылки-раздатки.
+// Файлы раздаток в копию не входят — их нужно загрузить заново.
 import { getStore } from "@netlify/blobs";
 import { ID, json, isTeacher } from "../lib/shared.mjs";
 
@@ -9,6 +10,7 @@ const stores = () => ({
   progress: getStore({ name: "ege-progress", consistency: "strong" }),
   mocks: getStore({ name: "ege-mocks", consistency: "strong" }),
   files: getStore({ name: "ege-files", consistency: "strong" }),
+  diary: getStore({ name: "ege-diary", consistency: "strong" }),
 });
 
 async function all(store) {
@@ -24,7 +26,7 @@ export default async (req) => {
     const files = (await s.files.get("index", { type: "json" })) || [];
     return new Response(JSON.stringify({
       kind: "ege-cabinet-backup", version: 1, exported: new Date().toISOString(),
-      progress: await all(s.progress), mocks: await all(s.mocks), files,
+      progress: await all(s.progress), mocks: await all(s.mocks), diary: await all(s.diary), files,
     }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store",
       "Content-Disposition": `attachment; filename="kabinet-backup-${new Date().toISOString().slice(0, 10)}.json"` } });
   }
@@ -33,7 +35,7 @@ export default async (req) => {
     let b;
     try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); }
     if (b?.kind !== "ege-cabinet-backup") return json({ error: "not a backup" }, 400);
-    const res = { progress: 0, mocks: 0, links: 0, filesToReupload: 0 };
+    const res = { progress: 0, mocks: 0, diary: 0, links: 0, filesToReupload: 0 };
 
     for (const p of Array.isArray(b.progress) ? b.progress : []) {
       if (!ID.test(p?.id || "")) continue;
@@ -48,6 +50,13 @@ export default async (req) => {
       for (const it of m.items) if (it?.mid && !have.has(it.mid)) { cur.items.push(it); res.mocks++; }
       cur.items.sort((a, c) => (a.date < c.date ? -1 : a.date > c.date ? 1 : 0));
       await s.mocks.setJSON(m.id, cur);
+    }
+    for (const d of Array.isArray(b.diary) ? b.diary : []) {
+      if (!ID.test(d?.id || "") || !Array.isArray(d.entries)) continue;
+      const cur = (await s.diary.get(d.id, { type: "json" })) || { id: d.id, entries: [] };
+      const have = new Set(cur.entries.map((x) => x.eid));
+      for (const it of d.entries) if (it?.eid && !have.has(it.eid)) { cur.entries.push(it); res.diary++; }
+      await s.diary.setJSON(d.id, cur);
     }
     const index = (await s.files.get("index", { type: "json" })) || [];
     const haveF = new Set(index.map((x) => x.fid));

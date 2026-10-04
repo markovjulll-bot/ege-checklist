@@ -1,10 +1,12 @@
-// Раздатки: общий список материалов для всех учеников.
-// GET    /api/files?track=oge       — список (для версии или весь)
+// Раздатки: у каждого ученика свои материалы.
+// GET    /api/files?student=CODE&track=oge — раздатки ученика (+ старые общие для его версии)
+// GET    /api/files                 — весь список (для учителя)
+// PUT    /api/files?fid=ID          — учитель меняет, кому видна раздатка: {students:[…]}
 // GET    /api/files?fid=ID          — открыть файл
 // POST   /api/files                 — учитель загружает файл (тело — сам файл) или ссылку (JSON)
 // DELETE /api/files?fid=ID          — учитель удаляет
 import { getStore } from "@netlify/blobs";
-import { json, isTeacher, newId, clean, TRACKS } from "../lib/shared.mjs";
+import { ID, json, isTeacher, newId, clean, TRACKS } from "../lib/shared.mjs";
 
 const LIMIT = 4.5 * 1024 * 1024;
 const TYPES = {
@@ -20,6 +22,12 @@ const TYPES = {
 function cleanTracks(v) {
   const arr = Array.isArray(v) ? v : String(v || "").split(",");
   return [...new Set(arr.map((x) => String(x).trim()).filter((x) => TRACKS.includes(x)))];
+}
+
+// Кому видна раздатка: список кодов учеников
+function cleanStudents(v) {
+  const arr = Array.isArray(v) ? v : String(v || "").split(",");
+  return [...new Set(arr.map((x) => String(x).trim().toUpperCase()).filter((x) => ID.test(x)))].slice(0, 300);
 }
 
 async function readIndex(store) {
@@ -50,8 +58,14 @@ export default async (req) => {
 
   if (req.method === "GET") {
     const track = url.searchParams.get("track") || "";
+    const student = (url.searchParams.get("student") || "").toUpperCase();
     let items = await readIndex(store);
-    if (track) items = items.filter((x) => !x.tracks || !x.tracks.length || x.tracks.includes(track));
+    if (student || track) {
+      items = items.filter((x) => Array.isArray(x.students)
+        ? ID.test(student) && x.students.includes(student)
+        : (!x.tracks || !x.tracks.length || x.tracks.includes(track)));   // старые общие раздатки
+      items = items.map(({ students, ...rest }) => rest);                    // ученику не показываем чужие коды
+    }
     return json({ items });
   }
 
@@ -64,18 +78,20 @@ export default async (req) => {
       fid: id,
       title: clean(decodeURIComponent(req.headers.get("x-title") || ""), 120),
       topic: clean(decodeURIComponent(req.headers.get("x-topic") || ""), 60) || "Общее",
-      tracks: cleanTracks(req.headers.get("x-tracks")),
+      students: cleanStudents(req.headers.get("x-students")),
       uploaded: new Date().toISOString(),
     };
 
+    if (ctype !== "application/json" && !base.students.length) return json({ error: "no students" }, 400);
     if (ctype === "application/json") {
       let body;
       try { body = await req.json(); } catch { return json({ error: "bad json" }, 400); }
       let link;
       try { link = new URL(String(body?.url || "")); } catch { return json({ error: "bad url" }, 400); }
       if (!/^https?:$/.test(link.protocol)) return json({ error: "bad url" }, 400);
+      if (!cleanStudents(body?.students).length) return json({ error: "no students" }, 400);
       const item = { ...base, kind: "link", url: link.href,
-        title: clean(body?.title, 120) || link.hostname, topic: clean(body?.topic, 60) || "Общее", tracks: cleanTracks(body?.tracks) };
+        title: clean(body?.title, 120) || link.hostname, topic: clean(body?.topic, 60) || "Общее", students: cleanStudents(body?.students) };
       list.unshift(item);
       await store.setJSON("index", list);
       return json({ ok: true, item });
@@ -90,6 +106,20 @@ export default async (req) => {
     const item = { ...base, kind: "file", type: ctype, size: buf.byteLength, filename,
       title: base.title || filename.replace(/\.[^.]+$/, "") };
     list.unshift(item);
+    await store.setJSON("index", list);
+    return json({ ok: true, item });
+  }
+
+  if (req.method === "PUT") {
+    if (!isTeacher(req)) return json({ error: "unauthorized" }, 401);
+    let body;
+    try { body = await req.json(); } catch { return json({ error: "bad json" }, 400); }
+    const list = await readIndex(store);
+    const item = list.find((x) => x.fid === fid);
+    if (!item) return json({ error: "not found" }, 404);
+    const st = cleanStudents(body?.students);
+    if (!st.length) return json({ error: "no students" }, 400);
+    item.students = st; delete item.tracks;
     await store.setJSON("index", list);
     return json({ ok: true, item });
   }

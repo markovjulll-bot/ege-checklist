@@ -4,17 +4,17 @@
 // GET  /api/progress            — учитель получает всех (заголовок x-teacher-pin)
 // DELETE /api/progress?id=CODE  — учитель удаляет строку (заголовок x-teacher-pin)
 import { getStore } from "@netlify/blobs";
-import { ID, json, isTeacher, TRACKS, GRADES } from "../lib/shared.mjs";
+import { ID, json, isTeacher, CHECK_KEYS, GRADES } from "../lib/shared.mjs";
 
 const UNIT = /^[A-Za-z0-9_-]{1,12}$/;
 
-// Отметки хранятся по версиям: {ege: {"9": [true,false…]}, oge: {…}, school: {…}}.
+// Отметки хранятся по чек-листам: {ege: {"9": [true,false…]}, oge: {…}, vpr8: {…}, school: {…}}.
 // Старые записи без версий считаются отметками ЕГЭ.
 function cleanChecks(raw) {
   const out = {};
   if (!raw || typeof raw !== "object") return out;
-  const src = TRACKS.some((t) => raw[t]) ? raw : { ege: raw };
-  for (const t of TRACKS) {
+  const src = CHECK_KEYS.some((t) => raw[t]) ? raw : { ege: raw };
+  for (const t of CHECK_KEYS) {
     const obj = src[t];
     if (!obj || typeof obj !== "object") continue;
     const clean = {};

@@ -156,7 +156,8 @@ function filesList(box, items, opts){
       const row = el("div", {class:"frow"},
         el("span", {class:"fext", text: ext.slice(0,6)}),
         el("span", {class:"grow"}, el("a", {href, target:"_blank", rel:"noopener", class:"ftitle", text: it.title}), el("span", {class:"meta", text: meta})));
-      if (opts.showTracks){ const tl = (it.tracks&&it.tracks.length) ? it.tracks.map(t=>TRACKS[t] ? TRACKS[t].title : t).join(", ") : "все версии"; row.querySelector(".meta").textContent += " · для: "+tl; }
+      if (opts.who){ row.querySelector(".meta").textContent += " · для: "+opts.who(it); }
+      if (opts.onRecipients) row.append(el("button", {class:"btn ghost sm", type:"button", text:"Кому", "aria-label":"Изменить, кому видна: "+it.title, onclick: ()=>opts.onRecipients(it)}));
       if (opts.onDelete) row.append(el("button", {class:"btn ghost sm", type:"button", text:"Удалить", "aria-label":"Удалить: "+it.title, onclick: ()=>opts.onDelete(it)}));
       ul.append(row);
     }
@@ -164,5 +165,83 @@ function filesList(box, items, opts){
   }
 }
 
-window.EGE.ui = {el, total, fmtDate, today, plural, slotsOf, maxOf, examOf, mockForm, mockList, chart, taskAverages, filesList};
+
+/* ---------- читательский дневник ---------- */
+const DFIELDS = [
+  ["heroes", "Главные герои", "Кто они, какие они"],
+  ["summary", "О чём книга", "Коротко: что происходит, чем заканчивается"],
+  ["impression", "Мои впечатления", "Что понравилось, что нет, о чём заставила задуматься"],
+  ["quote", "Цитата, которая запомнилась", "Можно с номером страницы"],
+];
+const starText = n => "★".repeat(n) + "☆".repeat(5-n);
+function diaryForm(box, opts){
+  const init = opts.initial || {};
+  box.innerHTML = "";
+  const err = el("div", {class:"err", "aria-live":"polite"});
+  const title = el("input", {type:"text", maxlength:"150", required:true, value: init.title||"", placeholder:"Например, «Капитанская дочка»"});
+  const author = el("input", {type:"text", maxlength:"100", value: init.author||"", placeholder:"Например, А. С. Пушкин"});
+  const started = el("input", {type:"date", value: init.started||""});
+  const finished = el("input", {type:"date", value: init.finished||""});
+  let rating = +init.rating||0;
+  const stars = el("div", {class:"stars", role:"radiogroup", "aria-label":"Оценка книги"});
+  const paint = () => stars.querySelectorAll("button").forEach((b,i)=>{ b.textContent = i<rating ? "★" : "☆"; b.setAttribute("aria-checked", String(i+1===rating)); });
+  for (let i=1;i<=5;i++) stars.append(el("button", {type:"button", role:"radio", "aria-label": i+" из 5", onclick: ()=>{ rating = rating===i ? 0 : i; paint(); }}));
+  const areas = {};
+  const save = el("button", {class:"btn", type:"submit", text: init.eid ? "Сохранить изменения" : "Добавить в дневник"});
+  const form = el("form", {class:"card mform dform"},
+    el("h3", {class:"mform-title", text: init.eid ? "Изменить запись" : "Новая книга"}),
+    el("div", {class:"mform-head"}, el("label", {class:"field grow"}, "Название *", title), el("label", {class:"field grow"}, "Автор", author)),
+    el("div", {class:"mform-head"}, el("label", {class:"field"}, "Начал(а) читать", started), el("label", {class:"field"}, "Дочитал(а)", finished),
+      el("div", {class:"field"}, el("span", {text:"Моя оценка"}), stars)),
+    DFIELDS.map(([k,label,ph]) => { const t = el("textarea", {rows: k==="quote"||k==="heroes" ? "2" : "4", maxlength: k==="summary"||k==="impression" ? "4000" : "1000", placeholder: ph}); t.value = init[k]||""; areas[k]=t; return el("label", {class:"field"}, label, t); }),
+    el("div", {class:"row mform-foot"}, el("span", {class:"grow"}), err,
+      el("button", {class:"btn ghost", type:"button", text:"Отмена", onclick: ()=>opts.onCancel && opts.onCancel()}), save));
+  paint();
+  form.addEventListener("submit", async e=>{
+    e.preventDefault(); err.textContent="";
+    if (!title.value.trim()){ err.textContent = "Напиши название книги."; title.focus(); return; }
+    save.disabled = true;
+    const entry = {eid: init.eid, title: title.value.trim(), author: author.value.trim(), started: started.value, finished: finished.value, rating};
+    for (const k in areas) entry[k] = areas[k].value;
+    try { await opts.onSubmit(entry); }
+    catch(ex){ err.textContent = ex && ex.message ? ex.message : "Не удалось сохранить. Попробуй ещё раз."; }
+    finally { save.disabled = false; }
+  });
+  box.append(form); title.focus();
+}
+function diaryList(box, entries, opts){
+  box.innerHTML = "";
+  if (!entries.length){ box.append(el("div", {class:"card empty", text: opts.emptyText || "В дневнике пока нет книг."})); return; }
+  for (const it of entries){
+    const dates = [it.started && fmtDate(it.started), it.finished && fmtDate(it.finished)].filter(Boolean).join(" — ");
+    const meta = [it.author, dates].filter(Boolean).join(" · ");
+    const body = el("div", {class:"mbody dbody"});
+    for (const [k,label] of DFIELDS) if ((it[k]||"").trim()) body.append(el("div", {class:"dsec"}, el("div", {class:"dlabel", text:label}), el("div", {class:"dtext", text:it[k]})));
+    if (!body.childNodes.length) body.append(el("p", {class:"small", text:"Пока заполнено только название."}));
+    if (opts.onComment){
+      const ta = el("textarea", {rows:"3", maxlength:"2000", placeholder:"Ваш комментарий ученику"}); ta.value = it.teacherComment||"";
+      const msg = el("span", {class:"small", "aria-live":"polite"});
+      body.append(el("div", {class:"tcomment"}, el("label", {class:"field"}, "Комментарий учителя", ta),
+        el("div", {class:"row"}, el("button", {class:"btn sm", type:"button", text:"Сохранить комментарий", onclick: async ()=>{ msg.textContent="Сохраняю…"; try { await opts.onComment(it, ta.value); msg.textContent="Сохранено"; } catch(e){ msg.textContent="Не удалось сохранить"; } }}), msg)));
+    } else if ((it.teacherComment||"").trim()){
+      body.append(el("div", {class:"tcomment"}, el("div", {class:"dlabel", text:"Комментарий учителя"}), el("div", {class:"dtext", text:it.teacherComment})));
+    }
+    const actions = el("div", {class:"row"});
+    if (opts.canEdit && opts.canEdit(it)){
+      actions.append(el("button", {class:"btn ghost sm", type:"button", text:"Изменить", onclick: ()=>opts.onEdit(it)}));
+      actions.append(el("button", {class:"btn ghost sm", type:"button", text:"Удалить", onclick: ()=>opts.onDelete(it)}));
+    }
+    if (actions.childNodes.length) body.append(actions);
+    box.append(el("details", {class:"card mock"},
+      el("summary", {class:"dsum"},
+        el("span", {class:"mdate", text: it.finished ? fmtDate(it.finished) : "читаю"}),
+        el("span", {class:"mtitle"}, el("span", {class:"ttl", text: it.title}), el("span", {class:"meta", text: meta || "автор и даты не указаны"})),
+        el("span", {class:"dstars", "aria-label": it.rating ? "Оценка "+it.rating+" из 5" : "Без оценки", text: it.rating ? starText(it.rating) : ""}),
+        (it.teacherComment||"").trim() && !opts.onComment ? el("span", {class:"chip", text:"есть комментарий"}) : el("span", {}),
+        el("span", {class:"chev", "aria-hidden":"true", text:"▶"})),
+      body));
+  }
+}
+
+window.EGE.ui = {el, total, fmtDate, today, plural, slotsOf, maxOf, examOf, mockForm, mockList, chart, taskAverages, filesList, diaryForm, diaryList};
 })();

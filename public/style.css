@@ -225,3 +225,27 @@ td.num{padding:8px 10px;font-variant-numeric:tabular-nums;font-weight:600}
 @media (max-width:720px){ .grades{grid-template-columns:repeat(3,1fr)} }
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 td.num{white-space:nowrap}
+
+/* ---------- дневник и раздатки по ученикам ---------- */
+.dform textarea,.tcomment textarea{border-radius:12px;border:1.5px solid var(--line);background:var(--surface-solid);padding:10px 12px;font:16px/1.45 var(--body);color:var(--ink);resize:vertical;min-height:64px}
+.stars{display:flex;gap:2px}
+.stars button{width:44px;height:44px;border:0;background:transparent;cursor:pointer;font-size:28px;line-height:1;color:var(--accent);padding:0}
+.dstars{color:var(--accent);font-size:18px;letter-spacing:1px;white-space:nowrap}
+.dbody .dsec{display:flex;flex-direction:column;gap:4px}
+.dlabel{font-size:13px;font-weight:700;color:var(--ink-2);text-transform:none}
+.dtext{white-space:pre-wrap;line-height:1.5}
+.tcomment{border-radius:14px;background:var(--violet-bg);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.tcomment .dlabel{color:var(--violet)}
+details.mock > summary .chip{font-size:12px;padding:3px 10px}
+.pickbox{display:flex;flex-direction:column;gap:8px}
+.picklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 14px;max-height:260px;overflow:auto;padding:8px 10px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface-solid)}
+.picklist label{display:flex;align-items:center;gap:8px;min-height:40px;cursor:pointer;font-size:15px}
+.picklist input{width:20px;height:20px;accent-color:var(--accent)}
+.listsel{margin-top:16px}
+.seg.four{grid-template-columns:repeat(4,auto)}
+@media (max-width:720px){
+  .seg.four{grid-template-columns:repeat(2,1fr)}
+  details.mock > summary .dstars{grid-column:1/-1}
+}
+details.mock > summary.dsum{grid-template-columns:auto 1fr auto auto auto}
+@media (max-width:720px){ details.mock > summary.dsum{grid-template-columns:1fr auto auto} details.mock > summary.dsum .mdate{grid-column:1/-1} }

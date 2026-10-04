@@ -27,10 +27,11 @@
       <nav class="seg" aria-label="Версия" id="trackSeg" style="margin:0"></nav>
       <button class="btn ghost" type="button" id="logout">Выйти</button>
     </div>
-    <nav class="seg" role="tablist" aria-label="Разделы" style="margin-top:12px">
+    <nav class="seg four" role="tablist" aria-label="Разделы" style="margin-top:12px">
       <button role="tab" id="t-progress" aria-controls="p-progress" aria-selected="true">Чек-листы</button>
       <button role="tab" id="t-mocks" aria-controls="p-mocks" aria-selected="false">Пробники</button>
       <button role="tab" id="t-files" aria-controls="p-files" aria-selected="false">Раздатки</button>
+      <button role="tab" id="t-diary" aria-controls="p-diary" aria-selected="false">Дневники</button>
     </nav>
 
     <section id="p-progress" role="tabpanel" aria-labelledby="t-progress">
@@ -43,6 +44,7 @@
             <button class="btn ghost" type="button" id="csv">Скачать CSV</button>
           </div>
         </div>
+        <div class="exsel" id="tListSel" style="margin-bottom:12px" hidden></div>
         <div class="scroller" id="classTable"></div>
         <p class="note" id="progNote">Нижняя строка — среднее по группе. Наведите на имя, чтобы увидеть код ученика и время обновления, на номер столбца — название темы. Таблица обновляется сама раз в 30 секунд.</p>
       </div>
@@ -73,9 +75,10 @@
           </label>
           <datalist id="topics"></datalist>
         </div>
-        <fieldset style="border:0;padding:0;margin:0">
-          <legend class="small" style="font-weight:600;margin-bottom:4px">Для кого (ничего не отмечено — для всех)</legend>
-          <div class="trackchecks" id="upTracks"></div>
+        <fieldset class="pickbox" style="border:0;padding:0;margin:0">
+          <legend class="small" style="font-weight:600;margin-bottom:6px">Кому — ученики выбранной версии</legend>
+          <div class="row"><button class="btn ghost sm" type="button" id="upAll">Выбрать всех</button><button class="btn ghost sm" type="button" id="upNone">Снять выбор</button></div>
+          <div class="picklist" id="upStudents"></div>
         </fieldset>
         <label class="field">Файл: PDF, Word, PowerPoint, Excel или картинка, до 4,5 МБ
           <input id="upFile" type="file" accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg">
@@ -86,13 +89,27 @@
         </label>
         <div class="row"><button class="btn" type="submit" id="upBtn">Добавить</button><span class="err" id="upErr" aria-live="polite"></span></div>
       </form>
-      <p class="note" id="filesNote"></p>
+      <div id="recipBox"></div>
+      <div class="row" style="margin-top:20px;justify-content:space-between">
+        <p class="note" id="filesNote" style="margin:0"></p>
+        <label class="field" style="flex-direction:row;align-items:center;gap:10px">Показать
+          <select id="filesFilter" style="min-height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface-solid);color:var(--ink);padding:0 10px;font-size:15px"></select>
+        </label>
+      </div>
       <div id="filesBox"></div>
+    </section>
+
+    <section id="p-diary" role="tabpanel" aria-labelledby="t-diary" hidden>
+      <div class="card class-wrap">
+        <div class="class-head"><h2 id="diaryTitle">Читательские дневники</h2><span class="note" style="margin:0">Нажмите на строку, чтобы открыть дневник ученика и оставить комментарии.</span></div>
+        <div class="scroller" id="diaryTable"></div>
+      </div>
+      <div id="diaryPanel"></div>
     </section>
 
     <section class="card box" style="margin-top:40px" aria-labelledby="bkTitle">
       <h3 id="bkTitle">Резервная копия и переезд</h3>
-      <p class="small" style="margin:0 0 12px">Копия содержит всех учеников, их отметки, результаты пробников и ссылки-раздатки. Файлы раздаток в копию не входят — после переезда их нужно загрузить заново.</p>
+      <p class="small" style="margin:0 0 12px">Копия содержит всех учеников, их отметки, результаты пробников, читательские дневники и ссылки-раздатки. Файлы раздаток в копию не входят — после переезда их нужно загрузить заново.</p>
       <div class="row">
         <button class="btn ghost" type="button" id="bkDown">Скачать копию</button>
         <label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Загрузить копию<input type="file" id="bkUp" accept=".json,application/json" class="sr-only"></label>
@@ -108,12 +125,13 @@
 (function(){
 "use strict";
 const E = window.EGE, ui = E.ui;
-const {TRACKS, EXAMS, unitPct, trackTotals, tone, trackOfGrade, normChecks} = E;
+const {LISTS, TRACKS, EXAMS, unitPct, trackTotals, tone, trackOfGrade, normChecks} = E;
 const $ = s => document.querySelector(s);
 let pin = sessionStorage.getItem("ege-teacher-pin") || "";
 let curTrack = sessionStorage.getItem("ege-teacher-track") || "ege";
 if (!TRACKS[curTrack]) curTrack = "ege";
-let progress = [], mockRecs = [], timer = null, picked = null, panelExam = null, avgExam = null;
+let progress = [], mockRecs = [], timer = null, picked = null, panelExam = null, avgExam = null, tList = null;
+let diaryRecs = [], dPicked = null;
 const H = () => ({"x-teacher-pin": pin});
 const info = {};   // id -> {name, grade}
 const display = id => ((info[id]&&info[id].name)||"").trim() || "Без имени ("+id+")";
@@ -137,20 +155,24 @@ function syncTrack(){
   $("#trackSeg").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.t===curTrack)));
   $("#progTitle").textContent = "Чек-листы: "+TRACKS[curTrack].long;
   $("#mocksTitle").textContent = (curTrack==="school" ? "ВПР и проверочные: " : "Пробники: ")+TRACKS[curTrack].long;
-  $("#t-mocks").textContent = curTrack==="school" ? "ВПР" : "Пробники";
+  $("#t-mocks").textContent = curTrack==="school" ? "ВПР" : curTrack==="oge" ? "Пробники и ВПР" : "Пробники";
+  $("#diaryTitle").textContent = "Читательские дневники: "+TRACKS[curTrack].long;
+  dPicked = null; $("#diaryPanel").innerHTML = "";
   renderProgress();
   if (!$("#p-mocks").hidden) renderMocks();
   if (!$("#p-files").hidden) loadFiles();
+  if (!$("#p-diary").hidden) loadDiaries();
 }
 
 /* ---------- вкладки ---------- */
-const TABS = ["progress","mocks","files"];
+const TABS = ["progress","mocks","files","diary"];
 function showTab(name){
   if (!TABS.includes(name)) name="progress";
   for (const t of TABS){ $("#t-"+t).setAttribute("aria-selected", String(t===name)); $("#p-"+t).hidden = t!==name; }
   history.replaceState(null, "", "#"+name);
   if (name==="mocks") loadMocks();
   if (name==="files") loadFiles();
+  if (name==="diary") loadDiaries();
 }
 for (const t of TABS) $("#t-"+t).addEventListener("click", ()=>showTab(t));
 
@@ -162,7 +184,11 @@ async function loadProgress(){
   for (const p of progress) info[p.id] = {name: p.name||"", grade: p.grade||null};
 }
 function renderProgress(){
-  const box = $("#classTable"), tr = TRACKS[curTrack];
+  const lists = TRACKS[curTrack].lists;
+  if (!tList || !lists.includes(tList)) tList = lists[0];
+  const sel = $("#tListSel"); sel.innerHTML = ""; sel.hidden = lists.length<2;
+  for (const k of lists) sel.append(ui.el("button", {type:"button", "aria-pressed": String(k===tList), text:"Чек-лист: "+LISTS[k].title, onclick: ()=>{ tList=k; renderProgress(); }}));
+  const box = $("#classTable"), tr = LISTS[tList];
   const rows = progress.filter(p=>trackOfStudent(p.id)===curTrack).sort((a,b)=>display(a.id).localeCompare(display(b.id),"ru"));
   $("#classCount").textContent = rows.length ? "Учеников: "+rows.length : "";
   if (!rows.length){ box.innerHTML = '<div class="empty">В этой версии пока нет учеников. Они появятся, когда откроют сайт, впишут имя и выберут свой класс.</div>'; return; }
@@ -173,12 +199,12 @@ function renderProgress(){
   thead.append(hr); tbl.append(thead);
   const tb=document.createElement("tbody"), sums=tr.units.map(()=>0);
   for (const r of rows){
-    const ch = normChecks(r.checks)[curTrack] || {};
+    const ch = normChecks(r.checks)[tList] || {};
     const row=document.createElement("tr");
     const tdn=td("name", display(r.id)); const d=new Date(r.updated); tdn.title="Код "+r.id+", личная ссылка: "+location.origin+"/?code="+r.id+(isNaN(d)?"":", обновлено "+d.toLocaleString("ru-RU"));
     row.append(tdn, td("num", gradeLabel(r.id)));
     tr.units.forEach((u,k)=>{ const p=unitPct(ch,u); sums[k]+=p; row.append(cell(p)); });
-    row.append(td("total", trackTotals(curTrack, ch).avg+"%"));
+    row.append(td("total", trackTotals(tList, ch).avg+"%"));
     const tdd=td("del",""); const b=ui.el("button", {type:"button", text:"Удалить", "aria-label":"Удалить строку: "+display(r.id), onclick: async ()=>{
       if (!confirm("Удалить прогресс ученика «"+display(r.id)+"»? Результаты пробников останутся.")) return;
       const x=await api("/api/progress?id="+encodeURIComponent(r.id),{method:"DELETE",headers:H()}); if (x.ok) refreshProgress(); else alert("Не удалось удалить. Попробуйте ещё раз."); }});
@@ -199,15 +225,15 @@ async function refreshProgress(){
 }
 $("#refresh").addEventListener("click", refreshProgress);
 $("#csv").addEventListener("click", ()=>{
-  const tr = TRACKS[curTrack], q = v => '"'+String(v).replace(/"/g,'""')+'"';
+  const lk = tList || TRACKS[curTrack].lists[0], tr = LISTS[lk], q = v => '"'+String(v).replace(/"/g,'""')+'"';
   const head = ["Ученик","Код","Личная ссылка","Класс"].concat(tr.units.map(u=>(curTrack==="school"?"":"Задание ")+u.label+(curTrack==="school"?" — "+u.t:"")),["Всего, %","Обновлено"]);
   const lines = [head.map(q).join(";")];
   for (const r of progress.filter(p=>trackOfStudent(p.id)===curTrack)){
-    const ch = normChecks(r.checks)[curTrack] || {};
-    lines.push([display(r.id), r.id, location.origin+"/?code="+r.id, (info[r.id]&&info[r.id].grade)||""].concat(tr.units.map(u=>unitPct(ch,u)), [trackTotals(curTrack, ch).avg, r.updated||""]).map(q).join(";"));
+    const ch = normChecks(r.checks)[lk] || {};
+    lines.push([display(r.id), r.id, location.origin+"/?code="+r.id, (info[r.id]&&info[r.id].grade)||""].concat(tr.units.map(u=>unitPct(ch,u)), [trackTotals(lk, ch).avg, r.updated||""]).map(q).join(";"));
   }
   const blob = new Blob(["\ufeff"+lines.join("\r\n")], {type:"text/csv;charset=utf-8"});
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "chek-listy-"+curTrack+".csv"; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "chek-listy-"+lk+".csv"; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 });
 
 /* ---------- пробники ---------- */
@@ -220,9 +246,9 @@ async function loadMocks(){
   } catch(e){ if (e && e.message==="pin") return; $("#mocksTable").innerHTML = '<div class="empty">Не удалось загрузить результаты. Обновите страницу.</div>'; }
 }
 const itemsOf = id => { const r = mockRecs.find(x=>x.id===id); return r ? r.items : []; };
-const trackItems = id => itemsOf(id).filter(it=>TRACKS[curTrack].exams.includes(ui.examOf(it)));
-function examSelector(box, cur, set){
-  const ex = TRACKS[curTrack].exams; box.innerHTML=""; box.hidden = ex.length<2;
+const trackItems = id => { const its = itemsOf(id), ex = E.examsFor(curTrack, its); return its.filter(it=>ex.includes(ui.examOf(it))); };
+function examSelector(box, cur, set, ex){
+  ex = ex || TRACKS[curTrack].exams; box.innerHTML=""; box.hidden = ex.length<2;
   for (const k of ex) box.append(ui.el("button", {type:"button", "aria-pressed": String(k===cur), text: EXAMS[k].title, onclick: ()=>set(k)}));
 }
 function renderMocks(){
@@ -258,11 +284,11 @@ function renderMocks(){
 function renderStudent(){
   const box = $("#studentPanel"); box.innerHTML = "";
   if (!picked) return;
-  const id = picked, ex = TRACKS[curTrack].exams, all = trackItems(id);
-  if (!panelExam || !ex.includes(panelExam)){ const g = info[id] && info[id].grade; panelExam = ex.length>1 ? (g===7 ? "vpr7" : "vpr6") : ex[0]; }
+  const id = picked, all = trackItems(id), ex = E.examsFor(curTrack, all);
+  if (!panelExam || !ex.includes(panelExam)){ const g = info[id] && info[id].grade; panelExam = (g && ex.includes(E.defaultExam(g))) ? E.defaultExam(g) : ex[0]; }
   const items = all.filter(it=>ui.examOf(it)===panelExam);
   const formBox = ui.el("div", {}), sel = ui.el("div", {class:"exsel", style:"margin-top:14px"});
-  examSelector(sel, panelExam, k=>{ panelExam=k; renderStudent(); });
+  examSelector(sel, panelExam, k=>{ panelExam=k; renderStudent(); }, ex);
   const head = ui.el("div", {class:"panel-head"},
     ui.el("div", {}, ui.el("h2", {text: display(id)}), ui.el("p", {text: gradeLabel(id).replace("кл.","класс")+", код "+id+". Записи ученика отмечены «внесено учеником», ваши — «внёс учитель». Править можно любые."})),
     ui.el("button", {class:"btn", type:"button", text:"Внести результат", onclick: ()=>form(null)}));
@@ -296,18 +322,70 @@ function renderStudent(){
 
 /* ---------- раздатки ---------- */
 for (const t of ["Общее","Орфография","Пунктуация","Лексика","Морфология","Синтаксис","Текст","Изложение","Сочинение","ВПР","Тренировочные варианты"]) $("#topics").append(ui.el("option", {value:t}));
-for (const [k,tr] of Object.entries(TRACKS)) $("#upTracks").append(ui.el("label", {}, ui.el("input", {type:"checkbox", value:k}), tr.long));
+const trackStudents = () => progress.filter(p=>trackOfStudent(p.id)===curTrack).map(p=>p.id).sort((a,b)=>display(a).localeCompare(display(b),"ru"));
+function fillPicker(box, selected){
+  box.innerHTML = "";
+  const ids = trackStudents();
+  if (!ids.length){ box.append(ui.el("span", {class:"small", text:"В этой версии пока нет учеников."})); return; }
+  for (const id of ids) box.append(ui.el("label", {}, ui.el("input", {type:"checkbox", value:id, checked: selected && selected.includes(id)}), display(id)+(info[id]&&info[id].grade ? ", "+info[id].grade+" кл." : "")));
+}
+const picked_ = box => [...box.querySelectorAll("input:checked")].map(i=>i.value);
+$("#upAll").addEventListener("click", ()=>$("#upStudents").querySelectorAll("input").forEach(i=>i.checked=true));
+$("#upNone").addEventListener("click", ()=>$("#upStudents").querySelectorAll("input").forEach(i=>i.checked=false));
+function whoOf(it){
+  if (!Array.isArray(it.students)) return "все ученики версии (общая раздатка из старой версии сайта)";
+  const names = it.students.map(display);
+  return names.length > 4 ? names.slice(0,4).join(", ")+" и ещё "+(names.length-4) : names.join(", ");
+}
+let allFiles = [];
 async function loadFiles(){
   try {
-    const r = await fetch("/api/files?track="+curTrack); if (!r.ok) throw 0;
-    const files = (await r.json()).items || [];
-    $("#filesNote").textContent = "Показаны раздатки, которые видят ученики версии «"+TRACKS[curTrack].long+"», включая общие для всех.";
-    ui.filesList($("#filesBox"), files, {showTracks:true, emptyText:"Для этой версии раздаток пока нет. Добавьте первую с помощью формы выше.", onDelete: async it=>{
+    await loadProgress().catch(()=>{});
+    const keep = picked_($("#upStudents")); fillPicker($("#upStudents"), keep);
+    const r = await fetch("/api/files"); if (!r.ok) throw 0;
+    allFiles = (await r.json()).items || [];
+    const f = $("#filesFilter"), cur = f.value, ids = trackStudents();
+    f.innerHTML = ""; f.append(ui.el("option", {value:"", text:"всех учеников версии"}));
+    for (const id of ids) f.append(ui.el("option", {value:id, text:display(id)}));
+    if ([...f.options].some(o=>o.value===cur)) f.value = cur;
+    renderFiles();
+  } catch(e){ $("#filesBox").innerHTML = '<div class="card empty">Не удалось загрузить список раздаток.</div>'; }
+}
+function renderFiles(){
+  const ids = new Set(trackStudents()), who = $("#filesFilter").value;
+  const list = allFiles.filter(it => Array.isArray(it.students)
+    ? (who ? it.students.includes(who) : it.students.some(id=>ids.has(id)))
+    : (!it.tracks || !it.tracks.length || it.tracks.includes(curTrack)));
+  $("#filesNote").textContent = who ? "Раздатки ученика: "+display(who)+"." : "Раздатки учеников версии «"+TRACKS[curTrack].long+"».";
+  ui.filesList($("#filesBox"), list, {who: whoOf, emptyText:"Раздаток пока нет. Добавьте первую с помощью формы выше.",
+    onRecipients: it=>editRecipients(it),
+    onDelete: async it=>{
       if (!confirm("Удалить «"+it.title+"»? Ученики больше не смогут её открыть.")) return;
       const x = await api("/api/files?fid="+encodeURIComponent(it.fid), {method:"DELETE", headers:H()});
       if (x.ok) loadFiles(); else alert("Не удалось удалить.");
     }});
-  } catch(e){ $("#filesBox").innerHTML = '<div class="card empty">Не удалось загрузить список раздаток.</div>'; }
+}
+$("#filesFilter").addEventListener("change", renderFiles);
+function editRecipients(it){
+  const box = $("#recipBox"); box.innerHTML = "";
+  const pick = ui.el("div", {class:"picklist"}); fillPicker(pick, Array.isArray(it.students) ? it.students : []);
+  const msg = ui.el("span", {class:"err", "aria-live":"polite"});
+  box.append(ui.el("div", {class:"card upform"},
+    ui.el("h3", {class:"mform-title", text:"Кому видна «"+it.title+"»"}),
+    ui.el("p", {class:"small", style:"margin:0", text:"Здесь показаны ученики выбранной версии. Ученики других версий, которым раздатка уже открыта, сохранятся."}),
+    pick,
+    ui.el("div", {class:"row"},
+      ui.el("button", {class:"btn", type:"button", text:"Сохранить", onclick: async ()=>{
+        const here = new Set(trackStudents());
+        const others = Array.isArray(it.students) ? it.students.filter(id=>!here.has(id)) : [];
+        const st = others.concat(picked_(pick));
+        if (!st.length){ msg.textContent = "Отметьте хотя бы одного ученика."; return; }
+        const r = await api("/api/files?fid="+encodeURIComponent(it.fid), {method:"PUT", headers:{...H(), "Content-Type":"application/json"}, body: JSON.stringify({students: st})});
+        if (!r.ok){ msg.textContent = "Не удалось сохранить."; return; }
+        box.innerHTML = ""; loadFiles();
+      }}),
+      ui.el("button", {class:"btn ghost", type:"button", text:"Отмена", onclick: ()=>{ box.innerHTML=""; }}), msg)));
+  box.scrollIntoView({behavior:"smooth", block:"start"});
 }
 const TYPES = {pdf:"application/pdf", png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg",
   docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -318,7 +396,8 @@ $("#upForm").addEventListener("submit", async e=>{
   const err = $("#upErr"), btn = $("#upBtn"); err.textContent = "";
   const file = $("#upFile").files[0], url = $("#upUrl").value.trim();
   const title = $("#upTitle").value.trim(), topic = $("#upTopic").value.trim() || "Общее";
-  const tracks = [...document.querySelectorAll("#upTracks input:checked")].map(i=>i.value);
+  const students = picked_($("#upStudents"));
+  if (!students.length){ err.textContent = "Отметьте, кому отправить раздатку."; return; }
   if (!file && !url){ err.textContent = "Выберите файл или вставьте ссылку."; return; }
   let r;
   btn.disabled = true; btn.textContent = "Загружаю…";
@@ -327,15 +406,59 @@ $("#upForm").addEventListener("submit", async e=>{
       const ext = (file.name.split(".").pop()||"").toLowerCase(), type = TYPES[ext];
       if (!type){ err.textContent = "Такой формат не подходит. Можно PDF, Word, PowerPoint, Excel, PNG или JPG."; return; }
       if (file.size > 4.5*1024*1024){ err.textContent = "Файл больше 4,5 МБ. Сожмите PDF или загрузите его на Яндекс Диск и вставьте ссылку."; return; }
-      r = await api("/api/files", {method:"POST", headers:{...H(), "Content-Type":type, "x-file-name":encodeURIComponent(file.name), "x-title":encodeURIComponent(title), "x-topic":encodeURIComponent(topic), "x-tracks":tracks.join(",")}, body:file});
+      r = await api("/api/files", {method:"POST", headers:{...H(), "Content-Type":type, "x-file-name":encodeURIComponent(file.name), "x-title":encodeURIComponent(title), "x-topic":encodeURIComponent(topic), "x-students":students.join(",")}, body:file});
     } else {
-      r = await api("/api/files", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: JSON.stringify({url, title, topic, tracks})});
+      r = await api("/api/files", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: JSON.stringify({url, title, topic, students})});
     }
     if (!r.ok){ err.textContent = r.status===413 ? "Файл слишком большой." : r.status===400 ? "Проверьте ссылку: она должна начинаться с https://" : "Не удалось добавить. Попробуйте ещё раз."; return; }
-    $("#upForm").reset(); loadFiles();
+    $("#upForm").reset(); $("#upStudents").querySelectorAll("input").forEach(i=>i.checked=false); loadFiles();
   } catch(ex){ if (ex.message!=="pin") err.textContent = "Нет связи с сервером. Попробуйте ещё раз."; }
   finally { btn.disabled = false; btn.textContent = "Добавить"; }
 });
+
+/* ---------- читательские дневники ---------- */
+async function loadDiaries(){
+  try {
+    const [r] = await Promise.all([api("/api/diary", {headers:H()}), loadProgress().catch(()=>{})]);
+    if (!r.ok) throw 0;
+    diaryRecs = (await r.json()).students || [];
+    renderDiaries();
+  } catch(e){ if (e && e.message==="pin") return; $("#diaryTable").innerHTML = '<div class="empty">Не удалось загрузить дневники. Обновите страницу.</div>'; }
+}
+const entriesOf = id => { const r = diaryRecs.find(x=>x.id===id); return r ? r.entries : []; };
+function renderDiaries(){
+  const ids = new Set(trackStudents()); for (const d of diaryRecs) if (d.entries && d.entries.length && trackOfStudent(d.id)===curTrack) ids.add(d.id);
+  const list = [...ids].sort((a,b)=>display(a).localeCompare(display(b),"ru"));
+  const box = $("#diaryTable");
+  if (!list.length){ box.innerHTML = '<div class="empty">В этой версии пока нет учеников.</div>'; return; }
+  const tbl = document.createElement("table");
+  tbl.innerHTML = '<thead><tr><th class="name">Ученик</th><th>Класс</th><th>Книг</th><th>Последняя книга</th><th>Без комментария</th><th>Обновлено</th></tr></thead>';
+  const tb = document.createElement("tbody");
+  for (const id of list){
+    const es = entriesOf(id), last = es[0];
+    const upd = es.reduce((m,e)=> (e.updated||"") > m ? e.updated : m, "");
+    const noComment = es.filter(e=>!(e.teacherComment||"").trim()).length;
+    const row = document.createElement("tr"); row.className = "pick"+(dPicked===id?" on":""); row.tabIndex = 0;
+    row.append(td("name", display(id)), td("num", gradeLabel(id)), td("num", es.length), td("l", last ? last.title : "—"), td("num", noComment || "—"), td("num", upd ? new Date(upd).toLocaleDateString("ru-RU") : "—"));
+    const open = ()=>{ dPicked=id; renderDiaries(); $("#diaryPanel").scrollIntoView({behavior:"smooth", block:"start"}); };
+    row.addEventListener("click", open); row.addEventListener("keydown", e=>{ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); open(); } });
+    tb.append(row);
+  }
+  tbl.append(tb); box.innerHTML = ""; box.append(tbl);
+  renderDiaryPanel();
+}
+function renderDiaryPanel(){
+  const box = $("#diaryPanel"); box.innerHTML = "";
+  if (!dPicked) return;
+  const id = dPicked, listBox = ui.el("div", {});
+  box.append(ui.el("div", {class:"panel-head"}, ui.el("div", {}, ui.el("h2", {text: "Дневник: "+display(id)}), ui.el("p", {text: "Откройте книгу, чтобы прочитать запись и оставить комментарий. Ученик увидит его у себя в дневнике."}))), listBox);
+  ui.diaryList(listBox, entriesOf(id), {emptyText:"Ученик пока не добавил ни одной книги.",
+    onComment: async (it, text)=>{
+      const r = await api("/api/diary", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: JSON.stringify({id, entry:{eid: it.eid, commentOnly:true, teacherComment:text}})});
+      if (!r.ok) throw 0;
+      const j = await r.json(); Object.assign(it, j.entry);
+    }});
+}
 
 /* ---------- резервная копия ---------- */
 $("#bkDown").addEventListener("click", async ()=>{
@@ -355,7 +478,7 @@ $("#bkUp").addEventListener("change", async e=>{
     const r = await api("/api/backup", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: await f.text()});
     const j = await r.json().catch(()=>({}));
     if (!r.ok) throw new Error(j.error==="not a backup" ? "Это не файл резервной копии кабинета." : "Не удалось загрузить копию.");
-    $("#bkMsg").textContent = "Готово: учеников — "+j.progress+", результатов — "+j.mocks+", ссылок — "+j.links+(j.filesToReupload ? ". Файлов раздаток, которые нужно загрузить заново: "+j.filesToReupload : "")+".";
+    $("#bkMsg").textContent = "Готово: учеников — "+j.progress+", результатов — "+j.mocks+", книг в дневниках — "+(j.diary||0)+", ссылок — "+j.links+(j.filesToReupload ? ". Файлов раздаток, которые нужно загрузить заново: "+j.filesToReupload : "")+".";
     refreshProgress(); if (!$("#p-mocks").hidden) loadMocks(); if (!$("#p-files").hidden) loadFiles();
   } catch(ex){ if (ex.message!=="pin") $("#bkMsg").textContent = ex.message || "Не удалось загрузить копию."; }
   finally { e.target.value = ""; }

@@ -14,6 +14,21 @@
   <div class="stripe" aria-hidden="true"></div>
   <h1 id="pageTitle">Мой кабинет: русский язык</h1>
 
+  <section class="card gradebox" id="welcome" hidden aria-labelledby="welcomeTitle">
+    <h2 id="welcomeTitle">Вход в кабинет</h2>
+    <p class="small" style="margin:0">Если ты уже заходил в кабинет, введи свой код — все отметки, результаты и дневник вернутся.</p>
+    <label for="loginCode" class="field">Мой код
+      <input id="loginCode" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Например, K7MP2QXA" maxlength="8">
+    </label>
+    <div class="err" id="loginErr" aria-live="polite"></div>
+    <div class="row">
+      <button class="btn" type="button" id="loginBtn">Войти</button>
+      <span class="small">или</span>
+      <button class="btn ghost" type="button" id="newBtn">Я здесь впервые</button>
+    </div>
+  </section>
+
+  <div id="main">
   <div class="card me">
     <label for="name">Имя и фамилия (их увидит учитель)
       <input id="name" autocomplete="name" placeholder="Например, Аня Смирнова">
@@ -26,6 +41,7 @@
       <span class="chip" id="gradeChip" hidden></span>
       <button class="linkbtn" type="button" id="changeGrade" hidden>Сменить класс</button>
       <button class="linkbtn" type="button" id="haveCode">У меня уже есть код</button>
+      <button class="btn ghost sm" type="button" id="logout">Выйти</button>
     </div>
   </div>
   <div class="card pinbox" id="restoreBox" hidden>
@@ -42,10 +58,11 @@
   </section>
 
   <div id="cabinet" hidden>
-    <nav class="seg" role="tablist" aria-label="Разделы кабинета">
+    <nav class="seg four" role="tablist" aria-label="Разделы кабинета">
       <button role="tab" id="t-check" aria-controls="p-check" aria-selected="true">Чек-лист</button>
       <button role="tab" id="t-files" aria-controls="p-files" aria-selected="false">Раздатки</button>
       <button role="tab" id="t-mocks" aria-controls="p-mocks" aria-selected="false">Пробники</button>
+      <button role="tab" id="t-diary" aria-controls="p-diary" aria-selected="false">Читательский дневник</button>
     </nav>
 
     <main id="p-check" role="tabpanel" aria-labelledby="t-check">
@@ -53,6 +70,7 @@
         <div>
           <h2 style="font-size:24px;font-weight:600">Что я уже умею</h2>
           <p class="lead" id="checkLead">Отмечай пункты, которые точно освоил. Процент считается сам, а карта показывает, куда стоит направить силы.</p>
+          <div class="exsel listsel" id="listSel" hidden></div>
         </div>
         <div class="ring" aria-live="polite">
           <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -79,7 +97,7 @@
     </main>
 
     <section id="p-files" role="tabpanel" aria-labelledby="t-files" hidden>
-      <div class="panel-head"><div><h2>Раздатки</h2><p>Материалы от учителя для твоего класса. Нажми на название, чтобы открыть или скачать.</p></div></div>
+      <div class="panel-head"><div><h2>Раздатки</h2><p>Материалы, которые учитель подготовил лично для тебя. Нажми на название, чтобы открыть или скачать.</p></div></div>
       <div id="filesBox"><div class="card empty">Загружаю…</div></div>
     </section>
 
@@ -95,7 +113,17 @@
       <div id="mockList"></div>
     </section>
 
+    <section id="p-diary" role="tabpanel" aria-labelledby="t-diary" hidden>
+      <div class="panel-head">
+        <div><h2>Читательский дневник</h2><p>Записывай прочитанные книги: о чём они, кто герои и что ты о них думаешь. Учитель видит дневник и может оставить комментарий.</p></div>
+        <button class="btn" type="button" id="addBook">Добавить книгу</button>
+      </div>
+      <div id="diaryFormBox"></div>
+      <div id="diaryList"><div class="card empty">Загружаю…</div></div>
+    </section>
+
     <footer id="footer"></footer>
+  </div>
   </div>
 </div>
 
@@ -105,19 +133,29 @@
 (function(){
 "use strict";
 const E = window.EGE, ui = E.ui;
-const {TRACKS, EXAMS, CARDS, unitPct, trackTotals, tone, trackOfGrade, normChecks} = E;
+const {LISTS, TRACKS, EXAMS, CARDS, unitPct, trackTotals, tone, trackOfGrade, normChecks} = E;
 const LS = "ege-ru-checklist-v1";
 const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const $ = s => document.querySelector(s);
 
 function newCode(){ const a = new Uint8Array(8); crypto.getRandomValues(a); let s=""; for (const b of a) s += ALPH[b % ALPH.length]; return s; }
 let state = {id:"", name:"", grade:null, checks:{}, updated:0};
+let hadSaved = false;
+try { hadSaved = !!localStorage.getItem(LS); } catch(e) {}
 try { const raw = localStorage.getItem(LS); if (raw){ const s = JSON.parse(raw); if (s && typeof s==="object") state = {id:s.id||"", name:s.name||"", grade:E.GRADES.includes(+s.grade)?+s.grade:null, checks:normChecks(s.checks), updated:+s.updated||0}; } } catch(e) {}
 if (!/^[A-Z2-9]{8}$/.test(state.id)) state.id = newCode();
 function keep(){ try { localStorage.setItem(LS, JSON.stringify(state)); } catch(e) {} }
-keep();
+if (hadSaved) keep();
 const track = () => trackOfGrade(state.grade);
-const tchecks = () => state.checks[track()] || {};
+/* чек-лист: в 8–9 классе можно переключать ОГЭ / ВПР */
+const LSKEY = "ege-ru-list";
+function curList(){
+  const t = track(); if (!t) return null;
+  let k = null; try { k = localStorage.getItem(LSKEY); } catch(e) {}
+  return TRACKS[t].lists.includes(k) ? k : E.defaultList(state.grade);
+}
+function setList(k){ try { localStorage.setItem(LSKEY, k); } catch(e) {} buildTrack(); }
+const tchecks = () => state.checks[curList()] || {};
 
 /* ---------- выбор класса ---------- */
 const gradesBox = $("#grades");
@@ -129,7 +167,7 @@ for (const g of E.GRADES){
 function setGrade(g){
   const before = track();
   state.grade = g; keep();
-  if (before !== track()){ mocksLoaded = false; filesLoaded = false; closeForm(); }
+  if (before !== track()){ mocksLoaded = false; filesLoaded = false; closeForm(); curExam = null; try { localStorage.removeItem(LSKEY); } catch(e) {} }
   buildTrack(); showCabinet(); changed(true);
 }
 function showCabinet(){
@@ -139,19 +177,20 @@ function showCabinet(){
   gradesBox.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(+b.dataset.g===state.grade)));
   if (has){
     $("#gradeChip").textContent = state.grade+" класс · "+(track()==="school" ? "программа и ВПР" : TRACKS[track()].title);
-    $("#t-mocks").textContent = track()==="school" ? "ВПР" : "Пробники";
+    $("#t-mocks").textContent = track()==="school" ? "ВПР" : track()==="oge" ? "Пробники и ВПР" : "Пробники";
   }
 }
 $("#changeGrade").addEventListener("click", ()=>{ $("#gradeBox").hidden = false; $("#gradeBox").scrollIntoView({behavior:"smooth", block:"start"}); });
 
 /* ---------- вкладки ---------- */
-const TABS = ["check","files","mocks"];
+const TABS = ["check","files","mocks","diary"];
 function showTab(name, push){
   if (!TABS.includes(name)) name = "check";
   for (const t of TABS){ $("#t-"+t).setAttribute("aria-selected", String(t===name)); $("#p-"+t).hidden = t!==name; }
   if (push) history.replaceState(null, "", "#"+name);
   if (name==="files") loadFiles();
   if (name==="mocks") loadMocks();
+  if (name==="diary") loadDiary();
 }
 for (const t of TABS) $("#t-"+t).addEventListener("click", ()=>showTab(t, true));
 $(".seg").addEventListener("keydown", e=>{
@@ -171,10 +210,13 @@ function openUnit(id){
 }
 function buildTrack(){
   const tk = track(); if (!tk) return;
-  const tr = TRACKS[tk];
-  $("#pageTitle").textContent = "Мой кабинет: " + (tk==="school" ? "русский язык, 6–7 класс" : tr.title+" по русскому");
-  $("#mapTitle").textContent = tk==="school" ? "Карта тем" : "Карта экзамена";
+  const lk = curList(), tr = LISTS[lk];
+  const sel = $("#listSel"); sel.innerHTML = ""; sel.hidden = TRACKS[tk].lists.length < 2;
+  for (const k of TRACKS[tk].lists) sel.append(ui.el("button", {type:"button", "aria-pressed": String(k===lk), text:"Чек-лист: "+LISTS[k].title, onclick: ()=>setList(k)}));
+  $("#pageTitle").textContent = "Мой кабинет: " + (tk==="school" ? "русский язык, 6–7 класс" : tk==="oge" ? "русский язык, 8–9 класс" : "ЕГЭ по русскому");
+  $("#mapTitle").textContent = tk==="school" ? "Карта тем" : lk==="vpr8" ? "Карта ВПР" : "Карта экзамена";
   $("#footer").innerHTML = tr.source;
+  $("#checkLead").textContent = lk==="vpr8" ? "Чек-лист к ВПР 8 класса. Отмечай пункты, которые точно освоил: процент считается сам." : "Отмечай пункты, которые точно освоил. Процент считается сам, а карта показывает, куда стоит направить силы.";
   const tiles = $("#tiles"), sections = $("#sections");
   tiles.innerHTML = ""; sections.innerHTML = "";
   tiles.className = "tiles"+(tr.units.length<=16 ? " few" : "");
@@ -198,7 +240,7 @@ function buildTrack(){
       const box = ui.el("div", {class:"items"});
       u.i.forEach((txt,j)=>{
         const cb = ui.el("input", {type:"checkbox", "data-j":j, onchange: e=>{
-          const all = state.checks[tk] = state.checks[tk] || {};
+          const all = state.checks[lk] = state.checks[lk] || {};
           const arr = (all[u.id]||[]).slice(); while (arr.length<u.i.length) arr.push(false);
           arr[j] = e.target.checked; all[u.id] = arr; changed();
         }});
@@ -215,7 +257,7 @@ function render(){
   $("#code").textContent = state.id;
   if (document.activeElement !== $("#name")) $("#name").value = state.name;
   const tk = track(); if (!tk) return;
-  const tr = TRACKS[tk], ch = tchecks();
+  const lk = curList(), tr = LISTS[lk], ch = tchecks();
   for (const u of tr.units){
     const p = unitPct(ch, u), tn = tone(p);
     const tile = document.getElementById("tile-"+u.id); if (!tile) continue;
@@ -228,7 +270,7 @@ function render(){
     const c = ch[u.id]||[];
     d.querySelectorAll("input[type=checkbox]").forEach(cb=>{ cb.checked = !!c[+cb.dataset.j]; });
   }
-  const tot = trackTotals(tk, ch);
+  const tot = trackTotals(lk, ch);
   $("#totalPct").textContent = tot.avg+"%";
   $("#totalPts").textContent = tr.points ? "≈ "+tot.pts+" из "+tr.points+" баллов" : "тем освоено";
   $("#ringArc").setAttribute("stroke-dashoffset", (314.16*(1-tot.avg/100)).toFixed(2));
@@ -268,11 +310,12 @@ $("#restoreBtn").addEventListener("click", async ()=>{
     const [d, m] = await Promise.all([loadProgress(code), fetch("/api/mocks?id="+code).then(r=>r.ok?r.json():{items:[]})]);
     if (!d && !(m.items||[]).length){ $("#restoreErr").textContent = "Такого кода нет. Проверь, нет ли опечатки."; return; }
     state = {id:code, name:(d&&d.name)||"", grade: d&&E.GRADES.includes(+d.grade) ? +d.grade : state.grade, checks:normChecks(d&&d.checks), updated:d?Date.parse(d.updated)||0:0}; keep();
-    mocksLoaded = false; filesLoaded = false;
+    mocksLoaded = false; filesLoaded = false; diaryLoaded = false;
     $("#restoreBox").hidden=true; $("#restoreErr").textContent="";
     showCabinet(); buildTrack();
     if (!$("#p-mocks").hidden) loadMocks();
     if (!$("#p-files").hidden) loadFiles();
+    if (!$("#p-diary").hidden) loadDiary();
     setStatus("Готово, ты вошёл с кодом "+code+".");
   } catch(e){ $("#restoreErr").textContent = "Нет связи с сервером. Попробуй ещё раз."; }
 });
@@ -282,22 +325,24 @@ let filesLoaded = false;
 async function loadFiles(force){
   if ((filesLoaded && !force) || !track()) return;
   try {
-    const r = await fetch("/api/files?track="+track()); if (!r.ok) throw 0;
+    const r = await fetch("/api/files?student="+state.id+"&track="+track()); if (!r.ok) throw 0;
     const j = await r.json(); filesLoaded = true;
-    ui.filesList($("#filesBox"), j.items||[], {emptyText:"Учитель пока не добавил раздатки для твоего класса. Загляни позже."});
+    ui.filesList($("#filesBox"), j.items||[], {emptyText:"Учитель пока не добавил для тебя раздатки. Загляни позже."});
   } catch(e){ $("#filesBox").innerHTML = '<div class="card empty">Не удалось загрузить список. Проверь интернет и обнови страницу.</div>'; }
 }
 
 /* ---------- пробники ---------- */
 let mocks = [], mocksLoaded = false, curExam = null;
-function examsHere(){ return TRACKS[track()].exams; }
-function defaultExam(){ const ex = examsHere(); if (ex.length===1) return ex[0]; return state.grade===7 ? "vpr7" : "vpr6"; }
+function examsHere(){ return E.examsFor(track(), mocks); }
+function defaultExam(){ return E.defaultExam(state.grade); }
 function renderMocks(){
   const ex = examsHere();
   if (!ex.includes(curExam)) curExam = defaultExam();
-  const school = track()==="school";
-  $("#mocksTitle").textContent = school ? "ВПР и проверочные" : "Пробники";
-  $("#mocksLead").textContent = school ? "Результаты ВПР и тренировочных вариантов: твои и внесённые учителем. Баллы и отметка — по критериям ВПР." : "Результаты пробных экзаменов: твои и внесённые учителем. Баллы — первичные, из "+EXAMS[ex[0]].total+".";
+  const school = track()==="school", oge = track()==="oge";
+  $("#mocksTitle").textContent = school ? "ВПР и проверочные" : oge ? "Пробники и ВПР" : "Пробники";
+  $("#mocksLead").textContent = school ? "Результаты ВПР и тренировочных вариантов: твои и внесённые учителем. Баллы и отметка — по критериям ВПР."
+    : oge ? "Результаты пробных ОГЭ и ВПР: твои и внесённые учителем. Переключай вид работы кнопками ниже."
+    : "Результаты пробных экзаменов: твои и внесённые учителем. Баллы — первичные, из "+EXAMS[ex[0]].total+".";
   const sel = $("#exSel"); sel.hidden = ex.length<2; sel.innerHTML = "";
   for (const k of ex) sel.append(ui.el("button", {type:"button", "aria-pressed": String(k===curExam), text:EXAMS[k].title, onclick: ()=>{ curExam=k; closeForm(); renderMocks(); }}));
   const mine = mocks.filter(it=>ex.includes(ui.examOf(it)));
@@ -348,7 +393,69 @@ if (/^[A-Z2-9]{8}$/.test(urlCode) && urlCode !== state.id){
 }
 if (urlCode) history.replaceState(null, "", location.pathname + location.hash);
 
+/* ---------- читательский дневник ---------- */
+let diary = [], diaryLoaded = false;
+function renderDiary(){
+  ui.diaryList($("#diaryList"), diary, {
+    emptyText: "В дневнике пока нет книг. Нажми «Добавить книгу», когда начнёшь читать.",
+    canEdit: ()=>true, onEdit: it=>openBook(it),
+    onDelete: async it=>{
+      if (!confirm("Удалить запись о книге «"+it.title+"»?")) return;
+      const r = await fetch("/api/diary?id="+state.id+"&eid="+encodeURIComponent(it.eid), {method:"DELETE"});
+      if (r.ok){ diary = diary.filter(x=>x.eid!==it.eid); renderDiary(); } else alert("Не удалось удалить. Попробуй ещё раз.");
+    }
+  });
+}
+async function loadDiary(force){
+  if (diaryLoaded && !force) return;
+  try {
+    const r = await fetch("/api/diary?id="+state.id); if (!r.ok) throw 0;
+    diary = (await r.json()).entries || []; diaryLoaded = true; renderDiary();
+  } catch(e){ $("#diaryList").innerHTML = '<div class="card empty">Не удалось загрузить дневник. Проверь интернет и обнови страницу.</div>'; }
+}
+function openBook(item){
+  $("#addBook").hidden = true;
+  ui.diaryForm($("#diaryFormBox"), {initial:item, onCancel: closeBook, onSubmit: async entry=>{
+    const r = await fetch("/api/diary", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({id:state.id, entry})});
+    if (!r.ok) throw new Error("Не удалось сохранить. Проверь интернет и попробуй ещё раз.");
+    const j = await r.json();
+    diary = [j.entry].concat(diary.filter(x=>x.eid!==j.entry.eid));
+    closeBook(); renderDiary();
+  }});
+  $("#diaryFormBox").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function closeBook(){ $("#diaryFormBox").innerHTML = ""; $("#addBook").hidden = false; }
+$("#addBook").addEventListener("click", ()=>openBook(null));
+
+/* ---------- вход и выход ---------- */
+async function codeExists(code){
+  const [p, m, d] = await Promise.all([
+    fetch("/api/progress?id="+code).then(r=>r.ok),
+    fetch("/api/mocks?id="+code).then(r=>r.ok ? r.json() : {items:[]}),
+    fetch("/api/diary?id="+code).then(r=>r.ok ? r.json() : {entries:[]})]);
+  return p || (m.items||[]).length>0 || (d.entries||[]).length>0;
+}
+$("#loginBtn").addEventListener("click", async ()=>{
+  const code = $("#loginCode").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if (!/^[A-Z2-9]{8}$/.test(code)){ $("#loginErr").textContent = "Код — это 8 латинских букв и цифр, например K7MP2QXA."; return; }
+  try {
+    if (!(await codeExists(code))){ $("#loginErr").textContent = "Такого кода нет. Проверь, нет ли опечатки, или нажми «Я здесь впервые»."; return; }
+    state = {id:code, name:"", grade:null, checks:{}, updated:0}; keep(); location.reload();
+  } catch(e){ $("#loginErr").textContent = "Нет связи с сервером. Попробуй ещё раз."; }
+});
+$("#loginCode").addEventListener("keydown", e=>{ if (e.key==="Enter") $("#loginBtn").click(); });
+$("#newBtn").addEventListener("click", ()=>{ state = {id:newCode(), name:"", grade:null, checks:{}, updated:0}; keep(); location.reload(); });
+$("#logout").addEventListener("click", ()=>{
+  if (!confirm("Перед выходом запиши свой код: "+state.id+"\nБез него не получится вернуться к своим отметкам, результатам и дневнику.\n\nВыйти из кабинета?")) return;
+  try { localStorage.removeItem(LS); localStorage.removeItem(LSKEY); } catch(e) {}
+  location.href = location.pathname;
+});
+
 /* ---------- старт ---------- */
+if (!hadSaved && !/^[A-Z2-9]{8}$/.test(urlCode)){
+  $("#main").hidden = true; $("#welcome").hidden = false; $("#loginCode").focus();
+  return;
+}
 showCabinet(); buildTrack(); render();
 if (state.grade) showTab((location.hash||"").slice(1) || "check", false);
 (async ()=>{

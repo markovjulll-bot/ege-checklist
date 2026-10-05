@@ -10,7 +10,7 @@ const PORT = Number(process.env.PORT || 8080);
 const LIMIT = 6 * 1024 * 1024;
 
 const fns = {};
-for (const name of ["progress", "mocks", "files", "backup", "diary"]) {
+for (const name of ["progress", "mocks", "files", "backup", "diary", "homework", "student"]) {
   fns[name] = (await import(path.resolve(HERE, "..", "netlify", "functions", name + ".mjs"))).default;
 }
 const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",

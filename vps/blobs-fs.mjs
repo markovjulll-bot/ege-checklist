@@ -28,10 +28,11 @@ export function getStore(opts) {
       if (o.type === "arrayBuffer") return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
       return buf.toString("utf8");
     },
-    async list() {
+    async list(o = {}) {
       let names = [];
       try { names = await fs.readdir(dir); } catch (e) { if (e.code !== "ENOENT") throw e; }
-      return { blobs: names.filter((n) => !n.includes(".tmp-")).map((n) => ({ key: unsafe(n) })) };
+      const keys = names.filter((n) => !n.includes(".tmp-")).map(unsafe);
+      return { blobs: keys.filter((k) => !o.prefix || k.startsWith(o.prefix)).map((key) => ({ key })) };
     },
     async delete(k) { try { await fs.unlink(file(k)); } catch (e) { if (e.code !== "ENOENT") throw e; } },
   };

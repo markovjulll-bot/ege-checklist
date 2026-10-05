@@ -19,7 +19,7 @@
 
   <section class="card gradebox" id="welcome" hidden aria-labelledby="welcomeTitle">
     <h2 id="welcomeTitle">Вход в кабинет</h2>
-    <p class="small" style="margin:0">Если ты уже заходил в кабинет, введи свой код — все отметки, результаты и дневник вернутся.</p>
+    <p class="small" style="margin:0">Если у тебя уже есть кабинет, введи свой код — все отметки, результаты и дневник вернутся.</p>
     <label for="loginCode" class="field">Мой код
       <input id="loginCode" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Например, K7MP2QXA" maxlength="8">
     </label>
@@ -77,7 +77,7 @@
       <div class="top" style="margin-top:28px">
         <div>
           <h2 style="font-size:24px;font-weight:600">Что я уже умею</h2>
-          <p class="lead" id="checkLead">Отмечай пункты, которые точно освоил. Процент считается сам, а карта показывает, куда стоит направить силы.</p>
+          <p class="lead" id="checkLead">Отмечай то, что у тебя уже точно получается. Процент считается сам, а карта показывает, куда стоит направить силы.</p>
           <div class="exsel listsel" id="listSel" hidden></div>
         </div>
         <div class="ring" aria-live="polite">
@@ -230,7 +230,7 @@ function buildTrack(){
   $("#pageTitle").textContent = "Мой кабинет: " + (tk==="school" ? "русский язык, 6–7 класс" : tk==="oge" ? "русский язык, 8–9 класс" : "ЕГЭ по русскому");
   $("#mapTitle").textContent = tk==="school" ? "Карта тем" : lk==="vpr8" ? "Карта ВПР" : "Карта экзамена";
   $("#footer").innerHTML = tr.source;
-  $("#checkLead").textContent = lk==="vpr8" ? "Чек-лист к ВПР 8 класса. Отмечай пункты, которые точно освоил: процент считается сам." : "Отмечай пункты, которые точно освоил. Процент считается сам, а карта показывает, куда стоит направить силы.";
+  $("#checkLead").textContent = lk==="vpr8" ? "Чек-лист к ВПР 8 класса. Отмечай то, что у тебя уже точно получается: процент считается сам." : "Отмечай то, что у тебя уже точно получается. Процент считается сам, а карта показывает, куда стоит направить силы.";
   const tiles = $("#tiles"), sections = $("#sections");
   tiles.innerHTML = ""; sections.innerHTML = "";
   tiles.className = "tiles"+(tr.units.length<=16 ? " few" : "");
@@ -331,7 +331,7 @@ $("#restoreBtn").addEventListener("click", async ()=>{
     if (!$("#p-files").hidden) loadFiles();
     if (!$("#p-diary").hidden) loadDiary();
     loadHw();
-    setStatus("Готово, ты вошёл с кодом "+code+".");
+    setStatus("Готово, открыт кабинет с кодом "+code+".");
   } catch(e){ $("#restoreErr").textContent = "Нет связи с сервером. Попробуй ещё раз."; }
 });
 

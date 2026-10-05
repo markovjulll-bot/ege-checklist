@@ -1,7 +1,7 @@
 // Резервная копия всех данных: для переезда на другой хостинг и на всякий случай.
 // GET  /api/backup  — скачать копию (учитель, x-teacher-pin)
 // POST /api/backup  — загрузить копию: данные объединяются с уже имеющимися
-// В копию входят ученики, отметки, пробники, дневники и ссылки-раздатки.
+// В копию входят ученики, отметки, пробники, дневники, домашние задания и ссылки-раздатки.
 // Файлы раздаток в копию не входят — их нужно загрузить заново.
 import { getStore } from "@netlify/blobs";
 import { ID, json, isTeacher } from "../lib/shared.mjs";
@@ -11,6 +11,7 @@ const stores = () => ({
   mocks: getStore({ name: "ege-mocks", consistency: "strong" }),
   files: getStore({ name: "ege-files", consistency: "strong" }),
   diary: getStore({ name: "ege-diary", consistency: "strong" }),
+  homework: getStore({ name: "ege-homework", consistency: "strong" }),
 });
 
 async function all(store) {
@@ -27,6 +28,13 @@ export default async (req) => {
     return new Response(JSON.stringify({
       kind: "ege-cabinet-backup", version: 1, exported: new Date().toISOString(),
       progress: await all(s.progress), mocks: await all(s.mocks), diary: await all(s.diary), files,
+      homework: await (async () => {
+        const index = (await s.homework.get("index", { type: "json" })) || [];
+        const { blobs } = await s.homework.list({ prefix: "s/" });
+        const status = {};
+        for (const b of blobs) status[b.key.slice(2)] = (await s.homework.get(b.key, { type: "json" })) || {};
+        return { index, status };
+      })(),
     }), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store",
       "Content-Disposition": `attachment; filename="kabinet-backup-${new Date().toISOString().slice(0, 10)}.json"` } });
   }
@@ -35,7 +43,7 @@ export default async (req) => {
     let b;
     try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); }
     if (b?.kind !== "ege-cabinet-backup") return json({ error: "not a backup" }, 400);
-    const res = { progress: 0, mocks: 0, diary: 0, links: 0, filesToReupload: 0 };
+    const res = { progress: 0, mocks: 0, diary: 0, homework: 0, links: 0, filesToReupload: 0 };
 
     for (const p of Array.isArray(b.progress) ? b.progress : []) {
       if (!ID.test(p?.id || "")) continue;
@@ -57,6 +65,20 @@ export default async (req) => {
       const have = new Set(cur.entries.map((x) => x.eid));
       for (const it of d.entries) if (it?.eid && !have.has(it.eid)) { cur.entries.push(it); res.diary++; }
       await s.diary.setJSON(d.id, cur);
+    }
+    if (b.homework && Array.isArray(b.homework.index)) {
+      const hidx = (await s.homework.get("index", { type: "json" })) || [];
+      const have = new Set(hidx.map((h) => h.hid));
+      for (const h of b.homework.index) if (h?.hid && !have.has(h.hid)) {
+        if (h.files?.length) res.filesToReupload += h.files.length;
+        hidx.push({ ...h, files: [] }); res.homework++;
+      }
+      await s.homework.setJSON("index", hidx);
+      for (const [sid, st] of Object.entries(b.homework.status || {})) {
+        if (!ID.test(sid)) continue;
+        const cur = (await s.homework.get("s/" + sid, { type: "json" })) || {};
+        await s.homework.setJSON("s/" + sid, { ...st, ...cur });
+      }
     }
     const index = (await s.files.get("index", { type: "json" })) || [];
     const haveF = new Set(index.map((x) => x.fid));

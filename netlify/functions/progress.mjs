@@ -20,7 +20,7 @@ function cleanChecks(raw) {
     const clean = {};
     for (const [k, arr] of Object.entries(obj).slice(0, 60)) {
       if (!UNIT.test(k) || !Array.isArray(arr)) continue;
-      clean[k] = arr.slice(0, 12).map((v) => v === true);
+      clean[k] = arr.slice(0, 20).map((v) => v === true);
     }
     out[t] = clean;
   }

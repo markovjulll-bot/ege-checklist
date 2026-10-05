@@ -243,5 +243,28 @@ function diaryList(box, entries, opts){
   }
 }
 
-window.EGE.ui = {el, total, fmtDate, today, plural, slotsOf, maxOf, examOf, mockForm, mockList, chart, taskAverages, filesList, diaryForm, diaryList};
+/* ---------- домашние задания ---------- */
+function dueInfo(due){
+  if (!due) return {text:"без срока", tone:"violet", days:Infinity};
+  const t = new Date(); t.setHours(0,0,0,0);
+  const d = new Date(due+"T00:00:00"); const days = Math.round((d - t)/86400000);
+  const date = fmtDate(due).slice(0,5);
+  if (days < 0) return {text:"до "+date+" — просрочено на "+(-days)+" "+plural(-days,"день","дня","дней"), tone:"pink", days};
+  if (days === 0) return {text:"до "+date+" — сегодня", tone:"orange", days};
+  if (days === 1) return {text:"до "+date+" — завтра", tone:"orange", days};
+  return {text:"до "+date+" — через "+days+" "+plural(days,"день","дня","дней"), tone: days<=3 ? "orange" : "sky", days};
+}
+function hwBody(it){
+  const box = el("div", {class:"hwbody"});
+  if ((it.text||"").trim()) box.append(el("div", {class:"dtext", text: it.text}));
+  const items = [];
+  const row = (badge, href, label) => el("a", {href, target:"_blank", rel:"noopener", class:"hwlink"}, el("span", {class:"fext", text:badge}), el("span", {text:label}));
+  for (const l of it.links||[]) items.push(row("ССЫЛКА", l.url, l.title||l.url));
+  for (const f of it.files||[]) items.push(row((f.filename.split(".").pop()||"файл").toUpperCase().slice(0,5), "/api/homework?file="+encodeURIComponent(f.fid), f.filename+(f.size ? " · "+fmtSize(f.size) : "")));
+  if (items.length) box.append(el("div", {class:"hwlinks"}, items));
+  return box;
+}
+function hwTitle(it){ return (it.title||"").trim() || "Задание от "+new Date(it.created).toLocaleDateString("ru-RU"); }
+
+window.EGE.ui = {el, total, fmtDate, today, plural, slotsOf, maxOf, examOf, mockForm, mockList, chart, taskAverages, filesList, diaryForm, diaryList, dueInfo, hwBody, hwTitle, fmtSize};
 })();

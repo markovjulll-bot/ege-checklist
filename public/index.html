@@ -61,8 +61,13 @@
   </section>
 
   <div id="cabinet" hidden>
-    <nav class="seg four" role="tablist" aria-label="Разделы кабинета">
+    <div class="hwbanner" id="hwBanner" hidden role="status">
+      <div class="grow"><b id="hwBannerTitle"></b><div class="small" id="hwBannerText"></div></div>
+      <button class="btn" type="button" id="hwBannerBtn">Открыть задания</button>
+    </div>
+    <nav class="seg five" role="tablist" aria-label="Разделы кабинета">
       <button role="tab" id="t-check" aria-controls="p-check" aria-selected="true">Чек-лист</button>
+      <button role="tab" id="t-hw" aria-controls="p-hw" aria-selected="false">Домашнее задание</button>
       <button role="tab" id="t-files" aria-controls="p-files" aria-selected="false">Раздатки</button>
       <button role="tab" id="t-mocks" aria-controls="p-mocks" aria-selected="false">Пробники</button>
       <button role="tab" id="t-diary" aria-controls="p-diary" aria-selected="false">Читательский дневник</button>
@@ -114,6 +119,11 @@
       <div class="card box"><h3>Как растёт балл</h3><div id="chartBox"></div></div>
       <div class="card box"><h3>Задания в среднем по всем результатам</h3><div id="avgBox"></div></div>
       <div id="mockList"></div>
+    </section>
+
+    <section id="p-hw" role="tabpanel" aria-labelledby="t-hw" hidden>
+      <div class="panel-head"><div><h2>Домашнее задание</h2><p>Задания от учителя. Когда сделаешь, нажми «Выполнено» — учитель это увидит.</p></div></div>
+      <div id="hwList"><div class="card empty">Загружаю…</div></div>
     </section>
 
     <section id="p-diary" role="tabpanel" aria-labelledby="t-diary" hidden>
@@ -186,7 +196,7 @@ function showCabinet(){
 $("#changeGrade").addEventListener("click", ()=>{ $("#gradeBox").hidden = false; $("#gradeBox").scrollIntoView({behavior:"smooth", block:"start"}); });
 
 /* ---------- вкладки ---------- */
-const TABS = ["check","files","mocks","diary"];
+const TABS = ["check","hw","files","mocks","diary"];
 function showTab(name, push){
   if (!TABS.includes(name)) name = "check";
   for (const t of TABS){ $("#t-"+t).setAttribute("aria-selected", String(t===name)); $("#p-"+t).hidden = t!==name; }
@@ -194,6 +204,7 @@ function showTab(name, push){
   if (name==="files") loadFiles();
   if (name==="mocks") loadMocks();
   if (name==="diary") loadDiary();
+  if (name==="hw") renderHw();
 }
 for (const t of TABS) $("#t-"+t).addEventListener("click", ()=>showTab(t, true));
 $(".seg").addEventListener("keydown", e=>{
@@ -319,6 +330,7 @@ $("#restoreBtn").addEventListener("click", async ()=>{
     if (!$("#p-mocks").hidden) loadMocks();
     if (!$("#p-files").hidden) loadFiles();
     if (!$("#p-diary").hidden) loadDiary();
+    loadHw();
     setStatus("Готово, ты вошёл с кодом "+code+".");
   } catch(e){ $("#restoreErr").textContent = "Нет связи с сервером. Попробуй ещё раз."; }
 });
@@ -430,6 +442,51 @@ function openBook(item){
 function closeBook(){ $("#diaryFormBox").innerHTML = ""; $("#addBook").hidden = false; }
 $("#addBook").addEventListener("click", ()=>openBook(null));
 
+/* ---------- домашние задания ---------- */
+let hw = [], hwStatus = {};
+async function loadHw(){
+  try {
+    const r = await fetch("/api/homework?student="+state.id); if (!r.ok) throw 0;
+    const j = await r.json(); hw = j.items||[]; hwStatus = j.status||{};
+    renderBanner(); if (!$("#p-hw").hidden) renderHw();
+  } catch(e){ if (!$("#p-hw").hidden) $("#hwList").innerHTML = '<div class="card empty">Не удалось загрузить задания. Проверь интернет и обнови страницу.</div>'; }
+}
+const isDone = h => hwStatus[h.hid] && hwStatus[h.hid].done === true;
+function renderBanner(){
+  const pending = hw.filter(h=>!isDone(h));
+  const b = $("#hwBanner");
+  if (!pending.length){ b.hidden = true; return; }
+  const dated = pending.filter(h=>h.due).sort((a,c)=>a.due<c.due?-1:1);
+  const overdue = pending.filter(h=>h.due && ui.dueInfo(h.due).days<0).length;
+  $("#hwBannerTitle").textContent = "Домашних заданий: "+pending.length;
+  $("#hwBannerText").textContent = (dated.length ? "Ближайший срок: "+ui.dueInfo(dated[0].due).text.replace(/^до /,"")+"." : "Срок не указан.") + (overdue ? " Просрочено: "+overdue+"." : "");
+  b.hidden = false;
+}
+$("#hwBannerBtn").addEventListener("click", ()=>{ showTab("hw", true); $("#p-hw").scrollIntoView({behavior:"smooth", block:"start"}); });
+function renderHw(){
+  const box = $("#hwList"); box.innerHTML = "";
+  if (!hw.length){ box.append(ui.el("div", {class:"card empty", text:"Пока заданий нет. Когда учитель задаст, они появятся здесь."})); return; }
+  const key = h => (isDone(h) ? "1" : "0") + (h.due || "9999");
+  for (const h of hw.slice().sort((a,c)=>key(a)<key(c)?-1:1)){
+    const st = hwStatus[h.hid], due = ui.dueInfo(h.due), done = isDone(h);
+    const tone = done ? "sky" : due.tone;
+    const mark = async val => {
+      const r = await fetch("/api/homework?student="+state.id, {method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify({hid:h.hid, done: (st && st.done===val) ? null : val})});
+      if (!r.ok){ alert("Не удалось сохранить. Проверь интернет и попробуй ещё раз."); return; }
+      const j = await r.json(); if (j.status) hwStatus[h.hid] = j.status; else delete hwStatus[h.hid];
+      renderHw(); renderBanner();
+    };
+    box.append(ui.el("article", {class:"card hwcard"+(done?" done":"")},
+      ui.el("div", {class:"hwhead"},
+        ui.el("h3", {text: ui.hwTitle(h)}),
+        ui.el("span", {class:"duechip", style:"background:var(--"+tone+"-bg);color:var(--"+tone+")", text: done ? "выполнено" : due.text})),
+      ui.hwBody(h),
+      ui.el("div", {class:"hwbtns"},
+        ui.el("button", {type:"button", class:"yes", "aria-pressed": String(!!(st && st.done===true)), text:"✓ Выполнено", onclick: ()=>mark(true)}),
+        ui.el("button", {type:"button", class:"no", "aria-pressed": String(!!(st && st.done===false)), text:"✕ Не выполнено", onclick: ()=>mark(false)}))));
+  }
+}
+
 /* ---------- вход и выход ---------- */
 async function codeExists(code){
   const [p, m, d] = await Promise.all([
@@ -459,7 +516,7 @@ if (!hadSaved && !/^[A-Z2-9]{8}$/.test(urlCode)){
   $("#main").hidden = true; $("#welcome").hidden = false; $("#loginCode").focus();
   return;
 }
-showCabinet(); buildTrack(); render();
+showCabinet(); buildTrack(); render(); loadHw();
 if (state.grade) showTab((location.hash||"").slice(1) || "check", false);
 (async ()=>{
   try {

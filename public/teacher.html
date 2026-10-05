@@ -30,8 +30,9 @@
       <nav class="seg" aria-label="Версия" id="trackSeg" style="margin:0"></nav>
       <button class="btn ghost" type="button" id="logout">Выйти</button>
     </div>
-    <nav class="seg four" role="tablist" aria-label="Разделы" style="margin-top:12px">
+    <nav class="seg five" role="tablist" aria-label="Разделы" style="margin-top:12px">
       <button role="tab" id="t-progress" aria-controls="p-progress" aria-selected="true">Чек-листы</button>
+      <button role="tab" id="t-hw" aria-controls="p-hw" aria-selected="false">ДЗ</button>
       <button role="tab" id="t-mocks" aria-controls="p-mocks" aria-selected="false">Пробники</button>
       <button role="tab" id="t-files" aria-controls="p-files" aria-selected="false">Раздатки</button>
       <button role="tab" id="t-diary" aria-controls="p-diary" aria-selected="false">Дневники</button>
@@ -45,6 +46,7 @@
             <span class="note" id="classCount" style="margin:0"></span>
             <button class="btn ghost" type="button" id="refresh">Обновить</button>
             <button class="btn ghost" type="button" id="csv">Скачать CSV</button>
+            <button class="btn ghost" type="button" id="delSel" hidden>Удалить выбранных</button>
           </div>
         </div>
         <div class="exsel" id="tListSel" style="margin-bottom:12px" hidden></div>
@@ -102,6 +104,43 @@
       <div id="filesBox"></div>
     </section>
 
+    <section id="p-hw" role="tabpanel" aria-labelledby="t-hw" hidden>
+      <form class="card upform" id="hwForm">
+        <h2 style="font-size:20px;font-weight:600" id="hwFormTitle">Новое домашнее задание</h2>
+        <div class="mform-head">
+          <label class="field grow">Название (необязательно)
+            <input id="hwTitle" maxlength="150" placeholder="Например, Задания 9–12, вариант 3">
+          </label>
+          <label class="field">Сделать до
+            <input id="hwDue" type="date">
+          </label>
+        </div>
+        <label class="field">Что задано
+          <textarea id="hwText" rows="4" maxlength="6000" placeholder="Например: решить вариант 5 из сборника, задания 1–26; выучить словарные слова со с. 12" style="border-radius:12px;border:1.5px solid var(--line);background:var(--surface-solid);padding:10px 12px;font:16px/1.45 var(--body);color:var(--ink);resize:vertical"></textarea>
+        </label>
+        <label class="field">Ссылки — каждая с новой строки
+          <textarea id="hwLinks" rows="2" placeholder="https://…" style="border-radius:12px;border:1.5px solid var(--line);background:var(--surface-solid);padding:10px 12px;font:15px/1.45 var(--body);color:var(--ink);resize:vertical"></textarea>
+        </label>
+        <div class="field">Файлы: PDF, Word, PowerPoint, Excel или картинки, до 4,5 МБ каждый
+          <div class="filechips" id="hwKeepFiles"></div>
+          <input id="hwFiles" type="file" multiple accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg">
+        </div>
+        <fieldset class="pickbox" style="border:0;padding:0;margin:0">
+          <legend class="small" style="font-weight:600;margin-bottom:6px">Кому — ученики выбранной версии</legend>
+          <div class="row"><button class="btn ghost sm" type="button" id="hwAll">Выбрать всех</button><button class="btn ghost sm" type="button" id="hwNone">Снять выбор</button></div>
+          <div class="picklist" id="hwStudents"></div>
+        </fieldset>
+        <div class="row"><button class="btn" type="submit" id="hwBtn">Задать</button><button class="btn ghost" type="button" id="hwCancel" hidden>Отменить изменения</button><span class="err" id="hwErr" aria-live="polite"></span></div>
+      </form>
+      <div class="row" style="margin-top:20px;justify-content:space-between">
+        <p class="note" id="hwNote" style="margin:0"></p>
+        <label class="field" style="flex-direction:row;align-items:center;gap:10px">Показать
+          <select id="hwFilter" style="min-height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface-solid);color:var(--ink);padding:0 10px;font-size:15px"></select>
+        </label>
+      </div>
+      <div id="hwBox"></div>
+    </section>
+
     <section id="p-diary" role="tabpanel" aria-labelledby="t-diary" hidden>
       <div class="card class-wrap">
         <div class="class-head"><h2 id="diaryTitle">Читательские дневники</h2><span class="note" style="margin:0">Нажмите на строку, чтобы открыть дневник ученика и оставить комментарии.</span></div>
@@ -112,7 +151,7 @@
 
     <section class="card box" style="margin-top:40px" aria-labelledby="bkTitle">
       <h3 id="bkTitle">Резервная копия и переезд</h3>
-      <p class="small" style="margin:0 0 12px">Копия содержит всех учеников, их отметки, результаты пробников, читательские дневники и ссылки-раздатки. Файлы раздаток в копию не входят — после переезда их нужно загрузить заново.</p>
+      <p class="small" style="margin:0 0 12px">Копия содержит всех учеников, их отметки, результаты пробников, читательские дневники, домашние задания и ссылки-раздатки. Файлы раздаток и заданий в копию не входят — после переезда их нужно загрузить заново.</p>
       <div class="row">
         <button class="btn ghost" type="button" id="bkDown">Скачать копию</button>
         <label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Загрузить копию<input type="file" id="bkUp" accept=".json,application/json" class="sr-only"></label>
@@ -165,10 +204,11 @@ function syncTrack(){
   if (!$("#p-mocks").hidden) renderMocks();
   if (!$("#p-files").hidden) loadFiles();
   if (!$("#p-diary").hidden) loadDiaries();
+  if (!$("#p-hw").hidden) loadHw();
 }
 
 /* ---------- вкладки ---------- */
-const TABS = ["progress","mocks","files","diary"];
+const TABS = ["progress","hw","mocks","files","diary"];
 function showTab(name){
   if (!TABS.includes(name)) name="progress";
   for (const t of TABS){ $("#t-"+t).setAttribute("aria-selected", String(t===name)); $("#p-"+t).hidden = t!==name; }
@@ -176,6 +216,7 @@ function showTab(name){
   if (name==="mocks") loadMocks();
   if (name==="files") loadFiles();
   if (name==="diary") loadDiaries();
+  if (name==="hw") loadHw();
 }
 for (const t of TABS) $("#t-"+t).addEventListener("click", ()=>showTab(t));
 
@@ -204,13 +245,11 @@ function renderProgress(){
   for (const r of rows){
     const ch = normChecks(r.checks)[tList] || {};
     const row=document.createElement("tr");
-    const tdn=td("name", display(r.id)); const d=new Date(r.updated); tdn.title="Код "+r.id+", личная ссылка: "+location.origin+"/?code="+r.id+(isNaN(d)?"":", обновлено "+d.toLocaleString("ru-RU"));
+    const tdn=td("name", ""); tdn.append(ui.el("input", {type:"checkbox", class:"rowsel", value:r.id, "aria-label":"Выбрать: "+display(r.id), onchange: syncDelSel}), display(r.id)); const d=new Date(r.updated); tdn.title="Код "+r.id+", личная ссылка: "+location.origin+"/?code="+r.id+(isNaN(d)?"":", обновлено "+d.toLocaleString("ru-RU"));
     row.append(tdn, td("num", gradeLabel(r.id)));
     tr.units.forEach((u,k)=>{ const p=unitPct(ch,u); sums[k]+=p; row.append(cell(p)); });
     row.append(td("total", trackTotals(tList, ch).avg+"%"));
-    const tdd=td("del",""); const b=ui.el("button", {type:"button", text:"Удалить", "aria-label":"Удалить строку: "+display(r.id), onclick: async ()=>{
-      if (!confirm("Удалить прогресс ученика «"+display(r.id)+"»? Результаты пробников останутся.")) return;
-      const x=await api("/api/progress?id="+encodeURIComponent(r.id),{method:"DELETE",headers:H()}); if (x.ok) refreshProgress(); else alert("Не удалось удалить. Попробуйте ещё раз."); }});
+    const tdd=td("del",""); const b=ui.el("button", {type:"button", text:"Удалить", "aria-label":"Удалить ученика: "+display(r.id), onclick: ()=>deleteStudents([r.id])});
     tdd.append(b); row.append(tdd); tb.append(row);
   }
   const ar=document.createElement("tr"); ar.className="avg";
@@ -222,6 +261,17 @@ function renderProgress(){
   if (curTrack==="school"){ $("#progNote").textContent = "Номера столбцов — темы: "+tr.units.map((u,i)=>(i+1)+" — "+u.t).join("; ")+"."; }
   else $("#progNote").textContent = "Нижняя строка — среднее по группе. Наведите на имя, чтобы увидеть код ученика и время обновления, на номер столбца — название задания. Таблица обновляется сама раз в 30 секунд.";
 }
+function syncDelSel(){ const n = document.querySelectorAll("#classTable .rowsel:checked").length; $("#delSel").hidden = !n; $("#delSel").textContent = "Удалить выбранных ("+n+")"; }
+async function deleteStudents(ids){
+  const names = ids.map(display);
+  if (!confirm((ids.length===1 ? "Удалить ученика «"+names[0]+"»" : "Удалить учеников ("+ids.length+"): "+names.join(", "))+"?\n\nУдалятся отметки, результаты пробников, читательский дневник и отметки по ДЗ. Отменить это нельзя.\n\nЕсли ученик снова откроет кабинет на своём устройстве, он появится в таблице заново.")) return;
+  for (const id of ids){
+    const x = await api("/api/student?id="+encodeURIComponent(id), {method:"DELETE", headers:H()});
+    if (!x.ok){ alert("Не удалось удалить «"+display(id)+"». Попробуйте ещё раз."); break; }
+  }
+  $("#delSel").hidden = true; refreshProgress();
+}
+$("#delSel").addEventListener("click", ()=>deleteStudents([...document.querySelectorAll("#classTable .rowsel:checked")].map(i=>i.value)));
 async function refreshProgress(){
   try { await loadProgress(); renderProgress(); }
   catch(e){ if (e.message!=="pin") $("#classCount").textContent = "Нет связи с сервером, повторю через 30 секунд."; }
@@ -419,6 +469,101 @@ $("#upForm").addEventListener("submit", async e=>{
   finally { btn.disabled = false; btn.textContent = "Добавить"; }
 });
 
+/* ---------- домашние задания ---------- */
+let hwItems = [], hwSt = {}, hwEdit = null, hwKeep = [];
+$("#hwAll").addEventListener("click", ()=>$("#hwStudents").querySelectorAll("input").forEach(i=>i.checked=true));
+$("#hwNone").addEventListener("click", ()=>$("#hwStudents").querySelectorAll("input").forEach(i=>i.checked=false));
+function paintKeep(){
+  const box = $("#hwKeepFiles"); box.innerHTML = "";
+  for (const f of hwKeep) box.append(ui.el("span", {}, f.filename, ui.el("button", {type:"button", "aria-label":"Убрать файл "+f.filename, text:"✕", onclick: ()=>{ hwKeep = hwKeep.filter(x=>x.fid!==f.fid); paintKeep(); }})));
+}
+function resetHwForm(){
+  hwEdit = null; hwKeep = []; $("#hwForm").reset(); paintKeep();
+  $("#hwStudents").querySelectorAll("input").forEach(i=>i.checked=false);
+  $("#hwFormTitle").textContent = "Новое домашнее задание"; $("#hwBtn").textContent = "Задать"; $("#hwCancel").hidden = true; $("#hwErr").textContent = "";
+}
+$("#hwCancel").addEventListener("click", resetHwForm);
+async function loadHw(){
+  try {
+    await loadProgress().catch(()=>{});
+    const keep = picked_($("#hwStudents")); fillPicker($("#hwStudents"), hwEdit ? hwEdit.students : keep);
+    const r = await api("/api/homework", {headers:H()}); if (!r.ok) throw 0;
+    const j = await r.json(); hwItems = j.items||[]; hwSt = j.status||{};
+    const f = $("#hwFilter"), cur = f.value, ids = trackStudents();
+    f.innerHTML = ""; f.append(ui.el("option", {value:"", text:"всех учеников версии"}));
+    for (const id of ids) f.append(ui.el("option", {value:id, text:display(id)}));
+    if ([...f.options].some(o=>o.value===cur)) f.value = cur;
+    renderHwT();
+  } catch(e){ if (e && e.message==="pin") return; $("#hwBox").innerHTML = '<div class="card empty">Не удалось загрузить задания.</div>'; }
+}
+$("#hwFilter").addEventListener("change", ()=>renderHwT());
+function renderHwT(){
+  const box = $("#hwBox"); box.innerHTML = "";
+  const ids = new Set(trackStudents()), who = $("#hwFilter").value;
+  const list = hwItems.filter(h => who ? h.students.includes(who) : h.students.some(id=>ids.has(id)));
+  $("#hwNote").textContent = who ? "Задания ученика: "+display(who)+"." : "Задания учеников версии «"+TRACKS[curTrack].long+"», новые сверху.";
+  if (!list.length){ box.append(ui.el("div", {class:"card empty", text:"Заданий пока нет. Создайте первое с помощью формы выше."})); return; }
+  for (const h of list){
+    const mine = h.students.filter(id=>ids.has(id) || id===who);
+    const others = h.students.length - mine.length;
+    const stOf = id => (hwSt[id]||{})[h.hid];
+    const doneN = h.students.filter(id=>stOf(id) && stOf(id).done===true).length;
+    const due = ui.dueInfo(h.due);
+    const chips = ui.el("div", {class:"stchips"}, mine.map(id=>{ const s = stOf(id); return ui.el("span", {class:"stchip"+(s ? (s.done ? " yes" : " no") : ""), title: s ? (s.done ? "Выполнено" : "Не выполнено")+", "+new Date(s.at).toLocaleString("ru-RU") : "Пока не отмечено", text:(s ? (s.done ? "✓ " : "✕ ") : "— ")+display(id)}); }),
+      others ? ui.el("span", {class:"stchip", text:"и ещё "+others+" из других версий"}) : null);
+    box.append(ui.el("article", {class:"card hwcard"},
+      ui.el("div", {class:"hwhead"}, ui.el("h3", {text: ui.hwTitle(h)}), ui.el("span", {class:"duechip", style:"background:var(--"+due.tone+"-bg);color:var(--"+due.tone+")", text: due.text})),
+      ui.hwBody(h),
+      ui.el("div", {class:"small", text:"Выполнили: "+doneN+" из "+h.students.length}),
+      chips,
+      ui.el("div", {class:"row"},
+        ui.el("button", {class:"btn ghost sm", type:"button", text:"Изменить", onclick: ()=>editHw(h)}),
+        ui.el("button", {class:"btn ghost sm", type:"button", text:"Удалить", onclick: async ()=>{
+          if (!confirm("Удалить задание «"+ui.hwTitle(h)+"»? Ученики больше его не увидят.")) return;
+          const x = await api("/api/homework?hid="+encodeURIComponent(h.hid), {method:"DELETE", headers:H()});
+          if (x.ok) loadHw(); else alert("Не удалось удалить.");
+        }}))));
+  }
+}
+function editHw(h){
+  hwEdit = h; hwKeep = (h.files||[]).slice(); paintKeep();
+  $("#hwTitle").value = h.title||""; $("#hwDue").value = h.due||""; $("#hwText").value = h.text||"";
+  $("#hwLinks").value = (h.links||[]).map(l=>l.url).join("\n");
+  fillPicker($("#hwStudents"), h.students);
+  $("#hwFormTitle").textContent = "Изменить задание"; $("#hwBtn").textContent = "Сохранить изменения"; $("#hwCancel").hidden = false;
+  $("#hwForm").scrollIntoView({behavior:"smooth", block:"start"});
+}
+$("#hwForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const err = $("#hwErr"), btn = $("#hwBtn"); err.textContent = "";
+  const here = new Set(trackStudents());
+  const othersKept = hwEdit ? hwEdit.students.filter(id=>!here.has(id)) : [];
+  const students = othersKept.concat(picked_($("#hwStudents")));
+  const text = $("#hwText").value.trim(), links = $("#hwLinks").value.split(/\s+/).map(x=>x.trim()).filter(Boolean);
+  const newFiles = [...$("#hwFiles").files];
+  if (!students.length){ err.textContent = "Отметьте, кому задать."; return; }
+  if (!text && !links.length && !newFiles.length && !hwKeep.length){ err.textContent = "Напишите, что задано, или прикрепите ссылку или файл."; return; }
+  for (const f of newFiles){
+    const ext = (f.name.split(".").pop()||"").toLowerCase();
+    if (!TYPES[ext]){ err.textContent = "Файл «"+f.name+"»: такой формат не подходит."; return; }
+    if (f.size > 4.5*1024*1024){ err.textContent = "Файл «"+f.name+"» больше 4,5 МБ. Загрузите его на Яндекс Диск и вставьте ссылку."; return; }
+  }
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "Сохраняю…";
+  try {
+    const files = hwKeep.slice();
+    for (const f of newFiles){
+      const ext = (f.name.split(".").pop()||"").toLowerCase();
+      const r = await api("/api/homework?upload=1", {method:"POST", headers:{...H(), "Content-Type":TYPES[ext], "x-file-name":encodeURIComponent(f.name)}, body:f});
+      if (!r.ok) throw new Error("Не удалось загрузить файл «"+f.name+"».");
+      files.push((await r.json()).file);
+    }
+    const r = await api("/api/homework", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: JSON.stringify({hid: hwEdit ? hwEdit.hid : undefined, title: $("#hwTitle").value.trim(), text, links, files, due: $("#hwDue").value, students})});
+    if (!r.ok) throw new Error("Не удалось сохранить задание.");
+    resetHwForm(); loadHw();
+  } catch(ex){ if (ex.message!=="pin") err.textContent = ex.message || "Не удалось сохранить."; }
+  finally { btn.disabled = false; if (btn.textContent==="Сохраняю…") btn.textContent = label; }
+});
+
 /* ---------- читательские дневники ---------- */
 async function loadDiaries(){
   try {
@@ -481,7 +626,7 @@ $("#bkUp").addEventListener("change", async e=>{
     const r = await api("/api/backup", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: await f.text()});
     const j = await r.json().catch(()=>({}));
     if (!r.ok) throw new Error(j.error==="not a backup" ? "Это не файл резервной копии кабинета." : "Не удалось загрузить копию.");
-    $("#bkMsg").textContent = "Готово: учеников — "+j.progress+", результатов — "+j.mocks+", книг в дневниках — "+(j.diary||0)+", ссылок — "+j.links+(j.filesToReupload ? ". Файлов раздаток, которые нужно загрузить заново: "+j.filesToReupload : "")+".";
+    $("#bkMsg").textContent = "Готово: учеников — "+j.progress+", результатов — "+j.mocks+", книг в дневниках — "+(j.diary||0)+", заданий — "+(j.homework||0)+", ссылок — "+j.links+(j.filesToReupload ? ". Файлов раздаток, которые нужно загрузить заново: "+j.filesToReupload : "")+".";
     refreshProgress(); if (!$("#p-mocks").hidden) loadMocks(); if (!$("#p-files").hidden) loadFiles();
   } catch(ex){ if (ex.message!=="pin") $("#bkMsg").textContent = ex.message || "Не удалось загрузить копию."; }
   finally { e.target.value = ""; }

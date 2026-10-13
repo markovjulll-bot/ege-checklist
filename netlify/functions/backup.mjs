@@ -1,10 +1,11 @@
 // Резервная копия всех данных: для переезда на другой хостинг и на всякий случай.
 // GET  /api/backup  — скачать копию (учитель, x-teacher-pin)
 // POST /api/backup  — загрузить копию: данные объединяются с уже имеющимися
-// В копию входят ученики, отметки, пробники, дневники, домашние задания и ссылки-раздатки.
+// В копию входят ученики, отметки, пробники, дневники, домашние задания, ссылки-раздатки, быстрые ссылки учителя и заявки на пробник.
 // Файлы раздаток в копию не входят — их нужно загрузить заново.
 import { getStore } from "@netlify/blobs";
 import { ID, json, isTeacher } from "../lib/shared.mjs";
+import { cleanLinks } from "./links.mjs";
 
 const stores = () => ({
   progress: getStore({ name: "ege-progress", consistency: "strong" }),
@@ -12,6 +13,9 @@ const stores = () => ({
   files: getStore({ name: "ege-files", consistency: "strong" }),
   diary: getStore({ name: "ege-diary", consistency: "strong" }),
   homework: getStore({ name: "ege-homework", consistency: "strong" }),
+  links: getStore({ name: "ege-links", consistency: "strong" }),
+  signups: getStore({ name: "ege-signups", consistency: "strong" }),
+  materials: getStore({ name: "ege-materials", consistency: "strong" }),
 });
 
 async function all(store) {
@@ -28,6 +32,9 @@ export default async (req) => {
     return new Response(JSON.stringify({
       kind: "ege-cabinet-backup", version: 1, exported: new Date().toISOString(),
       progress: await all(s.progress), mocks: await all(s.mocks), diary: await all(s.diary), files,
+      quickLinks: ((await s.links.get("teacher", { type: "json" })) || {}).links || null,
+      signups: (await s.signups.get("index", { type: "json" })) || [],
+      materials: (await s.materials.get("index", { type: "json" })) || [],
       homework: await (async () => {
         const index = (await s.homework.get("index", { type: "json" })) || [];
         const { blobs } = await s.homework.list({ prefix: "s/" });
@@ -65,6 +72,24 @@ export default async (req) => {
       const have = new Set(cur.entries.map((x) => x.eid));
       for (const it of d.entries) if (it?.eid && !have.has(it.eid)) { cur.entries.push(it); res.diary++; }
       await s.diary.setJSON(d.id, cur);
+    }
+    if (Array.isArray(b.materials) && b.materials.length) {
+      const cur = (await s.materials.get("index", { type: "json" })) || [];
+      const have = new Set(cur.map((x) => x.mid));
+      for (const x of b.materials) if (x?.mid && !have.has(x.mid)) {
+        if (x.file) { res.filesToReupload++; if (!x.url) continue; cur.push({ ...x, file: null }); }
+        else cur.push(x);
+      }
+      await s.materials.setJSON("index", cur);
+    }
+    if (Array.isArray(b.signups) && b.signups.length) {
+      const cur = (await s.signups.get("index", { type: "json" })) || [];
+      const have = new Set(cur.map((x) => x.sid));
+      for (const x of b.signups) if (x?.sid && !have.has(x.sid)) cur.push(x);
+      await s.signups.setJSON("index", cur);
+    }
+    if (Array.isArray(b.quickLinks) && !(await s.links.get("teacher", { type: "json" }))) {
+      await s.links.setJSON("teacher", { links: cleanLinks(b.quickLinks), updated: new Date().toISOString() });
     }
     if (b.homework && Array.isArray(b.homework.index)) {
       const hidx = (await s.homework.get("index", { type: "json" })) || [];

@@ -10,15 +10,15 @@ const PORT = Number(process.env.PORT || 8080);
 const LIMIT = 6 * 1024 * 1024;
 
 const fns = {};
-for (const name of ["progress", "mocks", "files", "backup", "diary", "homework", "student"]) {
+for (const name of ["progress", "mocks", "files", "backup", "diary", "homework", "student", "links", "signup", "materials"]) {
   fns[name] = (await import(path.resolve(HERE, "..", "netlify", "functions", name + ".mjs"))).default;
 }
 const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".json": "application/json", ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
-async function readBody(req) {
+async function readBody(req, limit = LIMIT) {
   const chunks = []; let size = 0;
-  for await (const c of req) { size += c.length; if (size > LIMIT) throw Object.assign(new Error("too big"), { status: 413 }); chunks.push(c); }
+  for await (const c of req) { size += c.length; if (size > limit) throw Object.assign(new Error("too big"), { status: 413 }); chunks.push(c); }
   return Buffer.concat(chunks);
 }
 
@@ -27,7 +27,7 @@ http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://" + (req.headers.host || "localhost"));
     const m = url.pathname.match(/^\/api\/([a-z]+)$/);
     if (m && fns[m[1]]) {
-      const body = ["GET", "HEAD"].includes(req.method) ? undefined : await readBody(req);
+      const body = ["GET", "HEAD"].includes(req.method) ? undefined : await readBody(req, url.pathname === "/api/materials" ? 52 * 1024 * 1024 : LIMIT);
       const headers = {}; for (const [k, v] of Object.entries(req.headers)) if (typeof v === "string") headers[k] = v;
       const r = await fns[m[1]](new Request("https://" + (req.headers.host || "localhost") + url.pathname + url.search, { method: req.method, headers, body }));
       const out = Buffer.from(await r.arrayBuffer());

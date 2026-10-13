@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Запись на пробник по русскому языку</title>
+<meta name="description" content="Оставьте заявку на пробный экзамен по русскому языку: ЕГЭ, ОГЭ или ВПР.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#F3F4FB">
+<style>
+.signup{max-width:560px;margin:24px 0 0;padding:24px}
+.signup form{display:flex;flex-direction:column;gap:16px}
+.signup .field select,.signup .field input{width:100%;box-sizing:border-box}
+.consent{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--ink-2);line-height:1.45}
+.consent input{width:20px;height:20px;margin-top:1px;flex-shrink:0;accent-color:var(--accent)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.done{text-align:center;padding:12px 0}
+.done h2{font-size:22px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stripe" aria-hidden="true"></div>
+  <h1>Пробник по русскому языку</h1>
+  <p class="lead">Оставьте заявку — я свяжусь с вами, расскажу о формате и согласую дату пробного экзамена.</p>
+
+  <section class="card signup" aria-labelledby="formTitle">
+    <h2 id="formTitle" class="sr-only">Заявка на пробник</h2>
+    <form id="form" novalidate>
+      <label class="field">Имя и фамилия ученика
+        <input id="name" name="name" autocomplete="name" maxlength="80" required placeholder="Например, Аня Смирнова">
+      </label>
+      <label class="field">Класс
+        <select id="grade" name="grade" required>
+          <option value="">Выберите класс</option>
+          <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option>
+        </select>
+      </label>
+      <label class="field">Экзамен
+        <select id="exam" name="exam" required>
+          <option value="">Выберите экзамен</option>
+          <option>ЕГЭ</option><option>ОГЭ</option><option>ВПР</option>
+        </select>
+      </label>
+      <label class="field">Телефон или Telegram
+        <input id="contact" name="contact" maxlength="80" required inputmode="text" autocomplete="tel" placeholder="+7 900 000-00-00 или @username">
+      </label>
+      <label class="hp" aria-hidden="true">Сайт <input name="website" tabindex="-1" autocomplete="off"></label>
+      <label class="consent"><input type="checkbox" id="consent" required> <span>Согласен(-на) на обработку указанных данных, чтобы со мной связались по поводу записи на пробник.</span></label>
+      <div class="err" id="err" aria-live="polite"></div>
+      <button class="btn" type="submit" id="send">Записаться</button>
+    </form>
+    <div class="done" id="done" hidden role="status">
+      <h2>Заявка отправлена</h2>
+      <p class="small">Спасибо! Я напишу или позвоню в ближайшее время.</p>
+      <button class="btn ghost" type="button" id="again">Записать ещё одного ученика</button>
+    </div>
+  </section>
+</div>
+<script>
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+$("#grade").addEventListener("change", () => {
+  const g = +$("#grade").value; if (!g) return;
+  $("#exam").value = g >= 10 ? "ЕГЭ" : g === 9 ? "ОГЭ" : "ВПР";
+});
+$("#form").addEventListener("submit", async e => {
+  e.preventDefault(); $("#err").textContent = "";
+  const data = {name: $("#name").value.trim(), grade: +$("#grade").value, exam: $("#exam").value,
+    contact: $("#contact").value.trim(), consent: $("#consent").checked, website: e.target.website.value};
+  if (!data.name) return fail("Впишите имя ученика.", "#name");
+  if (!data.grade) return fail("Выберите класс.", "#grade");
+  if (!data.exam) return fail("Выберите экзамен.", "#exam");
+  if (data.contact.replace(/\D/g, "").length < 10 && !/^@?[A-Za-z0-9_]{5,}$/.test(data.contact)) return fail("Укажите телефон (10–11 цифр) или ник в Telegram.", "#contact");
+  if (!data.consent) return fail("Нужно согласие на обработку данных.", "#consent");
+  $("#send").disabled = true; $("#send").textContent = "Отправляю…";
+  try {
+    const r = await fetch("/api/signup", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(data)});
+    if (r.status === 429) throw new Error("Слишком много заявок подряд. Попробуйте через час.");
+    if (!r.ok) throw new Error("Не удалось отправить заявку. Попробуйте ещё раз.");
+    $("#form").hidden = true; $("#done").hidden = false;
+  } catch (ex) { fail(ex.message || "Нет связи с сервером. Попробуйте ещё раз."); }
+  finally { $("#send").disabled = false; $("#send").textContent = "Записаться"; }
+});
+$("#again").addEventListener("click", () => { $("#form").reset(); $("#form").hidden = false; $("#done").hidden = true; $("#name").focus(); });
+function fail(msg, sel){ $("#err").textContent = msg; if (sel) $(sel).focus(); }
+})();
+</script>
+</body>
+</html>

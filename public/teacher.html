@@ -30,12 +30,31 @@
       <nav class="seg" aria-label="Версия" id="trackSeg" style="margin:0"></nav>
       <button class="btn ghost" type="button" id="logout">Выйти</button>
     </div>
-    <nav class="seg five" role="tablist" aria-label="Разделы" style="margin-top:12px">
+    <section class="card quick" aria-labelledby="qTitle">
+      <div class="quick-head">
+        <h2 id="qTitle">Быстрые ссылки</h2>
+        <button class="btn ghost sm" type="button" id="qEditBtn" aria-expanded="false" aria-controls="qEdit">Настроить</button>
+      </div>
+      <div class="qlinks" id="qLinks"><span class="small">Загружаю…</span></div>
+      <div id="qEdit" hidden>
+        <p class="small" style="margin:14px 0 10px">Название и адрес сайта. Ссылки открываются в новой вкладке и сохраняются на сервере — они будут одинаковыми на всех ваших устройствах.</p>
+        <div id="qRows"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost sm" type="button" id="qAdd">Добавить ссылку</button>
+          <button class="btn sm" type="button" id="qSave">Сохранить</button>
+          <button class="btn ghost sm" type="button" id="qCancel">Отмена</button>
+          <span class="small" id="qMsg" aria-live="polite"></span>
+        </div>
+      </div>
+    </section>
+    <nav class="seg five six seven" role="tablist" aria-label="Разделы" style="margin-top:12px">
       <button role="tab" id="t-progress" aria-controls="p-progress" aria-selected="true">Чек-листы</button>
       <button role="tab" id="t-hw" aria-controls="p-hw" aria-selected="false">ДЗ</button>
       <button role="tab" id="t-mocks" aria-controls="p-mocks" aria-selected="false">Пробники</button>
       <button role="tab" id="t-files" aria-controls="p-files" aria-selected="false">Раздатки</button>
       <button role="tab" id="t-diary" aria-controls="p-diary" aria-selected="false">Дневники</button>
+      <button role="tab" id="t-mat" aria-controls="p-mat" aria-selected="false">Материалы</button>
+      <button role="tab" id="t-signups" aria-controls="p-signups" aria-selected="false">Заявки<span class="tabbadge" id="sgBadge" hidden></span></button>
     </nav>
 
     <section id="p-progress" role="tabpanel" aria-labelledby="t-progress">
@@ -149,9 +168,42 @@
       <div id="diaryPanel"></div>
     </section>
 
+
+
+    <section id="p-mat" role="tabpanel" aria-labelledby="t-mat" hidden>
+      <div class="card class-wrap">
+        <div class="class-head">
+          <h2>Материалы по заданиям</h2>
+          <div class="row">
+            <input id="matSearch" type="search" placeholder="Поиск по названию" aria-label="Поиск по материалам" class="mat-search">
+            <button class="btn" type="button" id="matAddBtn">Добавить материал</button>
+          </div>
+        </div>
+        <nav class="seg" aria-label="Экзамен" id="matExamSeg" style="margin:0 0 14px"></nav>
+        <p class="note" style="margin:0 0 12px">Презентации, ссылки на задания, игры и файлы — разложены по номерам заданий. Видите их только вы. Файлы до 50 МБ: PDF, PowerPoint, Word, Excel, картинки, ZIP.</p>
+        <div id="matForm" hidden></div>
+        <div id="matList"></div>
+      </div>
+    </section>
+
+    <section id="p-signups" role="tabpanel" aria-labelledby="t-signups" hidden>
+      <div class="card class-wrap">
+        <div class="class-head">
+          <h2>Заявки на пробник</h2>
+          <div class="row">
+            <button class="btn ghost" type="button" id="sgCopy">Скопировать ссылку на форму</button>
+            <a class="btn ghost" href="/probnik.html" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">Открыть форму</a>
+            <button class="btn ghost" type="button" id="sgRefresh">Обновить</button>
+          </div>
+        </div>
+        <p class="note" id="sgMsg" aria-live="polite" style="margin:0 0 12px">Форма открыта для всех по ссылке — её можно отправить в соцсети или родителям. Заявки появляются здесь.</p>
+        <div class="scroller" id="sgTable"></div>
+      </div>
+    </section>
+
     <section class="card box" style="margin-top:40px" aria-labelledby="bkTitle">
       <h3 id="bkTitle">Резервная копия и переезд</h3>
-      <p class="small" style="margin:0 0 12px">Копия содержит всех учеников, их отметки, результаты пробников, читательские дневники, домашние задания и ссылки-раздатки. Файлы раздаток и заданий в копию не входят — после переезда их нужно загрузить заново.</p>
+      <p class="small" style="margin:0 0 12px">Копия содержит всех учеников, их отметки, результаты пробников, читательские дневники, домашние задания, ссылки-раздатки, быстрые ссылки, заявки на пробник и материалы (без самих файлов). Файлы раздаток и заданий в копию не входят — после переезда их нужно загрузить заново.</p>
       <div class="row">
         <button class="btn ghost" type="button" id="bkDown">Скачать копию</button>
         <label class="btn ghost" style="display:inline-flex;align-items:center;cursor:pointer">Загрузить копию<input type="file" id="bkUp" accept=".json,application/json" class="sr-only"></label>
@@ -208,7 +260,7 @@ function syncTrack(){
 }
 
 /* ---------- вкладки ---------- */
-const TABS = ["progress","hw","mocks","files","diary"];
+const TABS = ["progress","hw","mocks","files","diary","mat","signups"];
 function showTab(name){
   if (!TABS.includes(name)) name="progress";
   for (const t of TABS){ $("#t-"+t).setAttribute("aria-selected", String(t===name)); $("#p-"+t).hidden = t!==name; }
@@ -217,6 +269,8 @@ function showTab(name){
   if (name==="files") loadFiles();
   if (name==="diary") loadDiaries();
   if (name==="hw") loadHw();
+  if (name==="signups") loadSignups();
+  if (name==="mat") loadMaterials();
 }
 for (const t of TABS) $("#t-"+t).addEventListener("click", ()=>showTab(t));
 
@@ -632,10 +686,203 @@ $("#bkUp").addEventListener("change", async e=>{
   finally { e.target.value = ""; }
 });
 
+
+/* ---------- быстрые ссылки ---------- */
+let qLinks = [];
+function renderQuick(){
+  const box = $("#qLinks"); box.innerHTML = "";
+  if (!qLinks.length){ box.append(ui.el("span", {class:"small", text:"Ссылок пока нет — нажмите «Настроить», чтобы добавить."})); return; }
+  for (const l of qLinks){
+    let host = ""; try { host = new URL(l.url).hostname.replace(/^www\./,""); } catch {}
+    box.append(ui.el("a", {class:"qlink", href:l.url, target:"_blank", rel:"noopener noreferrer", title:l.url},
+      ui.el("span", {class:"qletter", "aria-hidden":"true", text:(l.title||host||"?").trim().charAt(0).toUpperCase()}),
+      ui.el("span", {class:"qtext"}, ui.el("b", {text:l.title}), ui.el("span", {class:"small", text:host}))));
+  }
+}
+async function loadQuick(){
+  try { const r = await api("/api/links", {headers:H()}); if (!r.ok) throw 0; qLinks = (await r.json()).links || []; renderQuick(); }
+  catch(e){ if (e && e.message==="pin") return; $("#qLinks").innerHTML = '<span class="small">Не удалось загрузить ссылки.</span>'; }
+}
+function qRow(l){
+  const row = ui.el("div", {class:"qrow"},
+    ui.el("label", {class:"field"}, "Название", ui.el("input", {class:"qt", value:l.title||"", maxlength:"60", placeholder:"Например, Miro"})),
+    ui.el("label", {class:"field grow"}, "Адрес", ui.el("input", {class:"qu", type:"url", value:l.url||"", placeholder:"https://…", inputmode:"url"})),
+    ui.el("button", {type:"button", class:"btn ghost sm", text:"Удалить", "aria-label":"Удалить ссылку", onclick: ()=>row.remove()}));
+  return row;
+}
+function openQuickEdit(open){
+  $("#qEdit").hidden = !open; $("#qEditBtn").setAttribute("aria-expanded", String(open)); $("#qMsg").textContent = "";
+  if (open){ const rows = $("#qRows"); rows.innerHTML = ""; for (const l of qLinks) rows.append(qRow(l)); if (!qLinks.length) rows.append(qRow({})); }
+}
+$("#qEditBtn").addEventListener("click", ()=>openQuickEdit($("#qEdit").hidden));
+$("#qCancel").addEventListener("click", ()=>openQuickEdit(false));
+$("#qAdd").addEventListener("click", ()=>{ const r = qRow({}); $("#qRows").append(r); r.querySelector(".qt").focus(); });
+$("#qSave").addEventListener("click", async ()=>{
+  const links = [...document.querySelectorAll("#qRows .qrow")].map(r=>({title:r.querySelector(".qt").value.trim(), url:r.querySelector(".qu").value.trim()})).filter(l=>l.url);
+  $("#qMsg").textContent = "Сохраняю…";
+  try {
+    const r = await api("/api/links", {method:"PUT", headers:{...H(), "Content-Type":"application/json"}, body: JSON.stringify({links})});
+    if (!r.ok) throw 0;
+    qLinks = (await r.json()).links; renderQuick(); openQuickEdit(false);
+  } catch(e){ if (!e || e.message!=="pin") $("#qMsg").textContent = "Не удалось сохранить. Проверьте адреса и попробуйте ещё раз."; }
+});
+
+
+/* ---------- заявки на пробник ---------- */
+const SG_STATUS = {new:"Новая", contacted:"Связалась", booked:"Записан(-а)", declined:"Отказ"};
+let signups = [];
+function sgBadge(){ const n = signups.filter(x=>x.status==="new").length; const b=$("#sgBadge"); b.hidden = !n; b.textContent = n ? " "+n : ""; }
+async function loadSignups(){
+  try { const r = await api("/api/signup", {headers:H()}); if (!r.ok) throw 0; signups = (await r.json()).items || []; sgBadge(); if (!$("#p-signups").hidden) renderSignups(); }
+  catch(e){ if (!e || e.message!=="pin") $("#sgTable").innerHTML = '<div class="empty">Не удалось загрузить заявки.</div>'; }
+}
+function contactLink(c){
+  const t = c.trim(), tg = /^@?([A-Za-z0-9_]{5,32})$/.exec(t), digits = t.replace(/\D/g,"");
+  if (tg && !/^\d+$/.test(tg[1])) return ui.el("a", {href:"https://t.me/"+tg[1], target:"_blank", rel:"noopener", text:t});
+  if (digits.length>=10) return ui.el("a", {href:"tel:+"+(digits.length===10 ? "7"+digits : digits.replace(/^8/,"7")), text:t});
+  return document.createTextNode(t);
+}
+function renderSignups(){
+  const box = $("#sgTable");
+  if (!signups.length){ box.innerHTML = '<div class="empty">Заявок пока нет. Отправьте ссылку на форму — заявки появятся здесь.</div>'; return; }
+  const tbl=document.createElement("table"), hr=document.createElement("tr");
+  for (const h of ["Дата","Ученик","Класс","Экзамен","Контакт","Статус",""]) hr.append(th(h, h==="Ученик"?"name":null));
+  const thead=document.createElement("thead"); thead.append(hr); tbl.append(thead);
+  const tb=document.createElement("tbody");
+  for (const it of signups){
+    const row=document.createElement("tr"); if (it.status==="new") row.className="sg-new";
+    const d=new Date(it.created);
+    row.append(td("num", isNaN(d) ? "" : d.toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})), td("name", it.name), td("num", it.grade+" кл."), td("num", it.exam));
+    const tc=td("", ""); tc.append(contactLink(it.contact)); row.append(tc);
+    const sel=ui.el("select", {class:"sg-status", "aria-label":"Статус заявки: "+it.name, onchange: async ()=>{
+      const prev=it.status; it.status=sel.value; sgBadge(); row.className = it.status==="new" ? "sg-new" : "";
+      try { const r=await api("/api/signup?sid="+it.sid, {method:"PATCH", headers:{...H(),"Content-Type":"application/json"}, body:JSON.stringify({status:sel.value})}); if(!r.ok) throw 0; }
+      catch(e){ it.status=prev; sel.value=prev; sgBadge(); if (!e || e.message!=="pin") $("#sgMsg").textContent="Не удалось сохранить статус."; }
+    }});
+    for (const [k,v] of Object.entries(SG_STATUS)) sel.append(ui.el("option", {value:k, text:v, selected: k===it.status}));
+    const ts=td("", ""); ts.append(sel); row.append(ts);
+    const tdd=td("del",""); tdd.append(ui.el("button", {type:"button", text:"Удалить", "aria-label":"Удалить заявку: "+it.name, onclick: async ()=>{
+      if (!confirm("Удалить заявку «"+it.name+"»?")) return;
+      try { const r=await api("/api/signup?sid="+it.sid, {method:"DELETE", headers:H()}); if(!r.ok) throw 0; signups=signups.filter(x=>x.sid!==it.sid); sgBadge(); renderSignups(); }
+      catch(e){ if (!e || e.message!=="pin") $("#sgMsg").textContent="Не удалось удалить заявку."; }
+    }})); row.append(tdd);
+    tb.append(row);
+  }
+  tbl.append(tb); box.innerHTML=""; box.append(tbl);
+}
+$("#sgRefresh").addEventListener("click", loadSignups);
+$("#sgCopy").addEventListener("click", async ()=>{
+  const link = location.origin+"/probnik.html";
+  try { await navigator.clipboard.writeText(link); $("#sgMsg").textContent = "Ссылка скопирована: "+link; }
+  catch { $("#sgMsg").textContent = "Ссылка на форму: "+link; }
+});
+
+
+/* ---------- материалы по заданиям ---------- */
+const MAT_EXAMS = [["ege","ЕГЭ"],["oge","ОГЭ"],["vpr8_2027","ВПР 8"],["vpr7_2027","ВПР 7"],["vpr6_2027","ВПР 6"]];
+const MAT_KINDS = {presentation:"Презентация", tasks:"Задания", game:"Игра", theory:"Теория", file:"Файл"};
+const MAT_TYPES = {pdf:"application/pdf", pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation", ppt:"application/vnd.ms-powerpoint",
+  docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", doc:"application/msword",
+  xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg", zip:"application/zip"};
+let mats = [], matExam = sessionStorage.getItem("ege-mat-exam") || "ege", matOpen = new Set(), matEdit = null;
+if (!MAT_EXAMS.some(e=>e[0]===matExam)) matExam = "ege";
+function matSlots(){ return [{n:"common", t:"Общее: теория, памятки, варианты целиком"}].concat(EXAMS[matExam].slots.map(s=>({n:String(s.n), t:s.t}))); }
+function matHref(m){ return m.file ? "/api/materials?file="+m.file.fid : m.url; }
+for (const [k,l] of MAT_EXAMS) $("#matExamSeg").append(ui.el("button", {type:"button", "data-e":k, "aria-pressed":String(k===matExam), text:l, onclick: ()=>{
+  matExam=k; sessionStorage.setItem("ege-mat-exam", k); $("#matExamSeg").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.e===k))); closeMatForm(); renderMaterials(); }}));
+async function loadMaterials(){
+  try { const r = await api("/api/materials", {headers:H()}); if (!r.ok) throw 0; mats = (await r.json()).items || []; renderMaterials(); }
+  catch(e){ if (!e || e.message!=="pin") $("#matList").innerHTML = '<div class="empty">Не удалось загрузить материалы.</div>'; }
+}
+function renderMaterials(){
+  const box = $("#matList"); box.innerHTML = "";
+  const qs = $("#matSearch").value.trim().toLowerCase();
+  const mine = mats.filter(m=>m.exam===matExam && (!qs || (m.title+" "+(m.note||"")).toLowerCase().includes(qs)));
+  for (const sl of matSlots()){
+    const items = mine.filter(m=>m.task===sl.n);
+    if (qs && !items.length) continue;
+    const open = matOpen.has(matExam+":"+sl.n) || !!qs;
+    const head = ui.el("button", {type:"button", class:"mat-head"+(items.length?"":" empty-slot"), "aria-expanded":String(open), onclick: ()=>{ const key=matExam+":"+sl.n; matOpen.has(key)?matOpen.delete(key):matOpen.add(key); renderMaterials(); }},
+      ui.el("span", {class:"mat-num", text: sl.n==="common" ? "★" : sl.n}),
+      ui.el("span", {class:"mat-title", text: sl.t}),
+      ui.el("span", {class:"mat-count", text: items.length ? String(items.length) : "пусто"}),
+      ui.el("span", {class:"mat-arrow", "aria-hidden":"true", text: open ? "▾" : "▸"}));
+    const wrap = ui.el("div", {class:"mat-slot"}, head);
+    if (open){
+      const body = ui.el("div", {class:"mat-body"});
+      for (const m of items){
+        let sub = m.file ? m.file.filename : ""; if (!sub && m.url) { try { sub = new URL(m.url).hostname.replace(/^www\./,""); } catch {} }
+        body.append(ui.el("div", {class:"mat-item"},
+          ui.el("span", {class:"chip mat-kind k-"+m.kind, text: MAT_KINDS[m.kind]||"Файл"}),
+          ui.el("div", {class:"mat-main"},
+            ui.el("a", {href: matHref(m), target:"_blank", rel:"noopener noreferrer", class:"mat-link", text: m.title}),
+            ui.el("span", {class:"small", text: sub}),
+            m.note ? ui.el("span", {class:"small mat-note", text: m.note}) : null),
+          ui.el("div", {class:"row mat-actions"},
+            ui.el("button", {type:"button", class:"btn ghost sm", text:"Ссылка", title:"Скопировать ссылку, чтобы отправить ученику", onclick: async (e)=>{ const link = m.file ? location.origin+matHref(m) : m.url; try { await navigator.clipboard.writeText(link); e.target.textContent="Скопировано"; } catch { prompt("Ссылка:", link); } setTimeout(()=>{ e.target.textContent="Ссылка"; }, 1500); }}),
+            ui.el("button", {type:"button", class:"btn ghost sm", text:"Изменить", onclick: ()=>openMatForm(m)}),
+            ui.el("button", {type:"button", class:"btn ghost sm", text:"Удалить", "aria-label":"Удалить материал: "+m.title, onclick: async ()=>{
+              if (!confirm("Удалить «"+m.title+"»?")) return;
+              try { const r = await api("/api/materials?mid="+m.mid, {method:"DELETE", headers:H()}); if (!r.ok) throw 0; mats = mats.filter(x=>x.mid!==m.mid); renderMaterials(); } catch(e){}
+            }}))));
+      }
+      body.append(ui.el("button", {type:"button", class:"btn ghost sm", text:"+ Добавить сюда", onclick: ()=>openMatForm(null, sl.n)}));
+      wrap.append(body);
+    }
+    box.append(wrap);
+  }
+  if (!box.children.length) box.innerHTML = '<div class="empty">Ничего не найдено.</div>';
+}
+function closeMatForm(){ matEdit = null; $("#matForm").hidden = true; $("#matForm").innerHTML = ""; }
+function openMatForm(m, task){
+  matEdit = m; const f = $("#matForm"); f.innerHTML = ""; f.hidden = false;
+  const taskSel = ui.el("select", {id:"mfTask"}); for (const sl of matSlots()) taskSel.append(ui.el("option", {value:sl.n, text:(sl.n==="common"?"":"Задание "+sl.n+". ")+sl.t, selected: sl.n===(m?m.task:task||"common")}));
+  const kindSel = ui.el("select", {id:"mfKind"}); for (const [k,v] of Object.entries(MAT_KINDS)) kindSel.append(ui.el("option", {value:k, text:v, selected: k===(m?m.kind:"presentation")}));
+  const fileInfo = ui.el("span", {class:"small", text: m && m.file ? "Сейчас: "+m.file.filename+" (можно заменить)" : ""});
+  const err = ui.el("div", {class:"err", "aria-live":"polite"});
+  f.append(ui.el("div", {class:"card box mat-form"},
+    ui.el("h3", {text: m ? "Изменить материал" : "Новый материал — "+EXAMS[matExam].title}),
+    ui.el("div", {class:"row"}, ui.el("label", {class:"field grow"}, "Задание", taskSel), ui.el("label", {class:"field"}, "Тип", kindSel)),
+    ui.el("label", {class:"field"}, "Название", ui.el("input", {id:"mfTitle", maxlength:"150", value: m?m.title:"", placeholder:"Например, Презентация «Паронимы»"})),
+    ui.el("label", {class:"field"}, "Ссылка (на задания, игру, Google-презентацию…)", ui.el("input", {id:"mfUrl", type:"url", inputmode:"url", value: m?m.url||"":"", placeholder:"https://…"})),
+    ui.el("label", {class:"field"}, "или файл", ui.el("input", {id:"mfFile", type:"file", accept:".pdf,.ppt,.pptx,.doc,.docx,.xlsx,.png,.jpg,.jpeg,.zip"}), fileInfo),
+    ui.el("label", {class:"field"}, "Комментарий (необязательно)", ui.el("input", {id:"mfNote", maxlength:"1000", value: m?m.note||"":"", placeholder:"Например, для слабой группы, 15 минут"})),
+    err,
+    ui.el("div", {class:"row"},
+      ui.el("button", {type:"button", class:"btn", id:"mfSave", text:"Сохранить", onclick: ()=>saveMat(err)}),
+      ui.el("button", {type:"button", class:"btn ghost", text:"Отмена", onclick: closeMatForm}))));
+  f.scrollIntoView({behavior:"smooth", block:"start"}); $("#mfTitle").focus();
+}
+async function saveMat(err){
+  const btn = $("#mfSave"); err.textContent = "";
+  const fileEl = $("#mfFile").files[0]; let file = matEdit && matEdit.file ? matEdit.file : null;
+  const url = $("#mfUrl").value.trim();
+  if (!fileEl && !file && !url){ err.textContent = "Добавьте ссылку или файл."; return; }
+  btn.disabled = true; btn.textContent = "Сохраняю…";
+  try {
+    if (fileEl){
+      const ext = (fileEl.name.split(".").pop()||"").toLowerCase();
+      if (!MAT_TYPES[ext]) throw new Error("Такой тип файла не поддерживается.");
+      if (fileEl.size > 50*1024*1024) throw new Error("Файл больше 50 МБ.");
+      btn.textContent = "Загружаю файл…";
+      const r = await api("/api/materials?upload=1", {method:"POST", headers:{...H(), "Content-Type":MAT_TYPES[ext], "x-file-name":encodeURIComponent(fileEl.name)}, body:fileEl});
+      if (!r.ok) throw new Error(r.status===413 ? "Файл слишком большой." : "Не удалось загрузить файл.");
+      file = (await r.json()).file;
+    }
+    const r = await api("/api/materials", {method:"POST", headers:{...H(), "Content-Type":"application/json"}, body: JSON.stringify({mid: matEdit?matEdit.mid:undefined, exam: matExam, task: $("#mfTask").value, kind: $("#mfKind").value, title: $("#mfTitle").value.trim(), url: fileEl ? "" : url, note: $("#mfNote").value.trim(), file: fileEl ? file : (url && !file ? null : file)})});
+    if (!r.ok) throw new Error("Не удалось сохранить материал.");
+    const item = (await r.json()).item; const i = mats.findIndex(x=>x.mid===item.mid); if (i>=0) mats[i]=item; else mats.push(item);
+    matOpen.add(matExam+":"+item.task); closeMatForm(); renderMaterials();
+  } catch(ex){ if (ex.message!=="pin") err.textContent = ex.message || "Не удалось сохранить."; }
+  finally { if (btn.isConnected){ btn.disabled = false; btn.textContent = "Сохранить"; } }
+}
+$("#matAddBtn").addEventListener("click", ()=>openMatForm(null));
+$("#matSearch").addEventListener("input", renderMaterials);
+
 /* ---------- вход ---------- */
 function start(){
   $("#pinForm").hidden = true; $("#app").hidden = false;
-  syncTrack();
+  syncTrack(); loadQuick(); loadSignups();
   showTab((location.hash||"").slice(1) || "progress");
   refreshProgress(); clearInterval(timer); timer = setInterval(()=>{ if (!$("#p-progress").hidden) refreshProgress(); }, 30000);
 }

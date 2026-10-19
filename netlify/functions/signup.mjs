@@ -23,7 +23,14 @@ function tooMany(req) {
 export default async (req) => {
   const store = getStore({ name: "ege-signups", consistency: "strong" });
   const url = new URL(req.url);
-  const readIndex = async () => (await store.get("index", { type: "json" })) || [];
+  const YEAR = 365 * 24 * 3600e3;
+  // заявки старше года удаляются сами — так обещано в политике обработки данных
+  const readIndex = async () => {
+    const all = (await store.get("index", { type: "json" })) || [];
+    const fresh = all.filter((x) => !x.created || Date.now() - Date.parse(x.created) < YEAR);
+    if (fresh.length !== all.length) await store.setJSON("index", fresh);
+    return fresh;
+  };
 
   if (req.method === "POST") {
     let b; try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); }
@@ -36,7 +43,9 @@ export default async (req) => {
     if (tooMany(req)) return json({ error: "too many" }, 429);
     const list = await readIndex();
     if (list.length >= 2000) return json({ error: "full" }, 507);
-    const item = { sid: newId(10), name, grade, exam, contact, status: "new", created: new Date().toISOString() };
+    const now = new Date().toISOString();
+    // фиксируем, когда и на какую редакцию согласия отметили галочку
+    const item = { sid: newId(10), name, grade, exam, contact, status: "new", created: now, consent: { at: now, doc: "/consent.html", version: "2026-10-19" } };
     list.push(item);
     await store.setJSON("index", list);
     return json({ ok: true });

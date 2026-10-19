@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Запись на пробник по русскому языку</title>
 <meta name="description" content="Оставьте заявку на пробный экзамен по русскому языку: ЕГЭ, ОГЭ или ВПР.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/fonts/fonts.css">
 <link rel="stylesheet" href="/style.css">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -51,7 +49,7 @@
         <input id="contact" name="contact" maxlength="80" required inputmode="text" autocomplete="tel" placeholder="+7 900 000-00-00 или @username">
       </label>
       <label class="hp" aria-hidden="true">Сайт <input name="website" tabindex="-1" autocomplete="off"></label>
-      <label class="consent"><input type="checkbox" id="consent" required> <span>Согласен(-на) на обработку указанных данных, чтобы со мной связались по поводу записи на пробник.</span></label>
+      <label class="consent"><input type="checkbox" id="consent" required> <span>Я родитель (законный представитель) ученика или заполняю форму с его ведома и даю <a href="/consent.html" target="_blank">согласие на обработку персональных данных</a>. С <a href="/privacy.html" target="_blank">политикой обработки данных</a> ознакомлен(а).</span></label>
       <div class="err" id="err" aria-live="polite"></div>
       <button class="btn" type="submit" id="send">Записаться</button>
     </form>
@@ -61,6 +59,7 @@
       <button class="btn ghost" type="button" id="again">Записать ещё одного ученика</button>
     </div>
   </section>
+  <p class="small" style="margin-top:18px"><a href="/privacy.html">Политика обработки персональных данных</a> · <a href="/consent.html">Согласие на обработку данных</a></p>
 </div>
 <script>
 (function(){
@@ -78,7 +77,7 @@ $("#form").addEventListener("submit", async e => {
   if (!data.grade) return fail("Выберите класс.", "#grade");
   if (!data.exam) return fail("Выберите экзамен.", "#exam");
   if (data.contact.replace(/\D/g, "").length < 10 && !/^@?[A-Za-z0-9_]{5,}$/.test(data.contact)) return fail("Укажите телефон (10–11 цифр) или ник в Telegram.", "#contact");
-  if (!data.consent) return fail("Нужно согласие на обработку данных.", "#consent");
+  if (!data.consent) return fail("Нужно согласие на обработку персональных данных.", "#consent");
   $("#send").disabled = true; $("#send").textContent = "Отправляю…";
   try {
     const r = await fetch("/api/signup", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(data)});

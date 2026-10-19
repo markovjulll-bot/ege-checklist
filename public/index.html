@@ -4,9 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Мой кабинет — русский язык</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/fonts/fonts.css">
 <link rel="stylesheet" href="/style.css">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -37,6 +35,7 @@
       <input id="name" autocomplete="name" placeholder="Например, Аня Смирнова">
     </label>
     <div class="status" id="status" aria-live="polite">Загружаю…</div>
+    <p class="small" style="flex:1 1 100%;margin:0">Имя и прогресс видит только учитель. Вписывая имя, ты подтверждаешь, что родители знают и согласны: <a href="/consent.html" target="_blank">согласие</a>, <a href="/privacy.html" target="_blank">политика обработки данных</a>.</p>
   </div>
   <div class="card me" style="margin-top:10px">
     <div class="small" style="flex:1 1 300px">Твой код: <span class="code" id="code">—</span>. Запиши его: с ним можно войти в кабинет с другого телефона или компьютера.</div>
@@ -136,6 +135,7 @@
     </section>
 
     <footer id="footer"></footer>
+    <p class="small" style="margin-top:8px"><a href="/privacy.html">Политика обработки персональных данных</a> · <a href="/consent.html">Согласие на обработку данных</a></p>
   </div>
   </div>
 </div>

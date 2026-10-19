@@ -14,7 +14,8 @@ for (const name of ["progress", "mocks", "files", "backup", "diary", "homework",
   fns[name] = (await import(path.resolve(HERE, "..", "netlify", "functions", name + ".mjs"))).default;
 }
 const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-  ".json": "application/json", ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
+  ".json": "application/json", ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon",
+  ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8" };
 
 async function readBody(req, limit = LIMIT) {
   const chunks = []; let size = 0;

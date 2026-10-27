@@ -76,6 +76,11 @@ export default async (req) => {
     if (!teacher && item.by !== "student") return json({ error: "forbidden" }, 403);
     rec.items = rec.items.filter((x) => x.mid !== mid);
     await store.setJSON(id, rec);
+    // вместе с результатом удаляем прикреплённые к нему работы
+    if (item.files?.length) {
+      const files = getStore({ name: "ege-mock-files", consistency: "strong" });
+      for (const f of item.files) await files.delete("f/" + f.fid);
+    }
     return json({ ok: true });
   }
 

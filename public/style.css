@@ -324,3 +324,9 @@ tr.sg-new td{font-weight:700}
 .mat-form h3{margin:0}
 .mat-form .field input,.mat-form .field select{width:100%;box-sizing:border-box}
 @media (max-width:720px){ .mat-body{padding-left:6px} .seg.five.six.seven button:first-child{grid-column:1/-1} }
+
+/* проверенные работы в результатах пробников */
+.mfiles{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}
+.mfiles-h{font-weight:700;font-size:14px}
+.mfile{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mfile a{font-weight:600;word-break:break-word;color:var(--accent)}

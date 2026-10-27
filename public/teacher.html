@@ -222,7 +222,7 @@ const $ = s => document.querySelector(s);
 let pin = sessionStorage.getItem("ege-teacher-pin") || "";
 let curTrack = sessionStorage.getItem("ege-teacher-track") || "ege";
 if (!TRACKS[curTrack]) curTrack = "ege";
-let progress = [], mockRecs = [], timer = null, picked = null, panelExam = null, avgExam = null, tList = null;
+let progress = [], mockRecs = [], openMid = null, timer = null, picked = null, panelExam = null, avgExam = null, tList = null;
 let diaryRecs = [], dPicked = null;
 const H = () => ({"x-teacher-pin": pin});
 const info = {};   // id -> {name, grade}
@@ -405,6 +405,30 @@ function renderStudent(){
   ui.mockList(listBox, items, {
     emptyText: "У ученика пока нет результатов этого типа.",
     canEdit: ()=>true, onEdit: it=>form(it),
+    isOpen: it => it.mid===openMid,
+    fileHref: (it, f) => "/api/mockfiles?id="+id+"&fid="+encodeURIComponent(f.fid),
+    onAttach: async (it, list, status) => {
+      openMid = it.mid;
+      let done = 0, failed = [];
+      for (const f of list){
+        status.textContent = "Загружаю "+(done+1)+" из "+list.length+"…";
+        if (f.size > 15*1024*1024){ failed.push(f.name+" — больше 15 МБ"); continue; }
+        try {
+          const r = await api("/api/mockfiles?id="+id+"&mid="+encodeURIComponent(it.mid), {method:"POST",
+            headers:{...H(), "Content-Type": f.type || "application/octet-stream", "x-file-name": encodeURIComponent(f.name)}, body:f});
+          if (r.ok) done++;
+          else failed.push(f.name+(r.status===415 ? " — такой формат не подходит (нужен PDF, JPG, PNG или DOCX)" : r.status===413 ? " — больше 15 МБ" : r.status===400 ? " — уже 12 файлов, больше нельзя" : " — не загрузился"));
+        } catch(e){ if (e && e.message==="pin") return; failed.push(f.name+" — не загрузился"); }
+      }
+      await loadMocks();
+      if (failed.length) alert("Не все файлы прикрепились:\n"+failed.join("\n"));
+    },
+    onRemoveFile: async (it, f) => {
+      if (!confirm("Убрать файл «"+f.name+"»?")) return;
+      openMid = it.mid;
+      const r = await api("/api/mockfiles?id="+id+"&mid="+encodeURIComponent(it.mid)+"&fid="+encodeURIComponent(f.fid), {method:"DELETE", headers:H()});
+      if (r.ok) loadMocks(); else alert("Не удалось убрать файл.");
+    },
     onDelete: async it=>{
       if (!confirm("Удалить результат от "+ui.fmtDate(it.date)+"?")) return;
       const r = await api("/api/mocks?id="+id+"&mid="+encodeURIComponent(it.mid), {method:"DELETE", headers:H()});

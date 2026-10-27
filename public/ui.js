@@ -89,14 +89,34 @@ function mockList(box, items, opts){
       actions.append(el("button", {class:"btn ghost sm", type:"button", text:"Изменить", onclick: ()=>opts.onEdit(it)}));
       actions.append(el("button", {class:"btn ghost sm", type:"button", text:"Удалить", onclick: ()=>opts.onDelete(it)}));
     }
-    const who = EXAMS[exam].title+", "+(it.by==="teacher" ? "внёс учитель" : (opts.studentLabel || "внесено учеником"))+(mark ? ", отметка «"+mark+"»" : "");
-    box.append(el("details", {class:"card mock"},
+    const fl = it.files || [];
+    const files = el("div", {class:"mfiles"});
+    if (fl.length){
+      files.append(el("div", {class:"mfiles-h", text:"Проверенная работа"}));
+      for (const f of fl){
+        const row = el("div", {class:"mfile"},
+          el("a", {href: opts.fileHref(it, f), target:"_blank", rel:"noopener", text: f.name}),
+          el("span", {class:"small", text: fmtSize(f.size)}));
+        if (opts.onRemoveFile) row.append(el("button", {class:"btn ghost sm", type:"button", text:"Убрать", onclick: ()=>opts.onRemoveFile(it, f)}));
+        files.append(row);
+      }
+    }
+    if (opts.onAttach){
+      const status = el("span", {class:"small", role:"status"});
+      const inp = el("input", {type:"file", multiple:true, hidden:true, accept:"application/pdf,image/*,.pdf,.jpg,.jpeg,.png,.webp,.heic,.docx"});
+      inp.addEventListener("change", ()=>{ const list=[...inp.files]; inp.value=""; if (list.length) opts.onAttach(it, list, status); });
+      files.append(el("div", {class:"row"}, inp,
+        el("button", {class:"btn ghost sm", type:"button", text: fl.length ? "Добавить файлы" : "Прикрепить проверенную работу", onclick: ()=>inp.click()}), status));
+    }
+    const who = EXAMS[exam].title+", "+(it.by==="teacher" ? "внёс учитель" : (opts.studentLabel || "внесено учеником"))+(mark ? ", отметка «"+mark+"»" : "")
+      +(fl.length ? ", есть проверенная работа" : "");
+    box.append(el("details", {class:"card mock", open: !!(opts.isOpen && opts.isOpen(it))},
       el("summary", {},
         el("span", {class:"mdate", text: fmtDate(it.date)}),
         el("span", {class:"mtitle"}, el("span", {class:"ttl", text: it.title || "Пробный экзамен"}), el("span", {class:"meta", text: who})),
         el("span", {class:"mtotal", style:"color:var(--"+tn+")"}, sum, el("small", {text:" / "+SUM})),
         el("span", {class:"chev", "aria-hidden":"true", text:"▶"})),
-      el("div", {class:"mbody"}, cells, actions)));
+      el("div", {class:"mbody"}, cells, (fl.length || opts.onAttach) ? files : null, actions)));
   }
 }
 

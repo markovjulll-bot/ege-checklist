@@ -367,6 +367,7 @@ function renderMocks(){
   ui.mockList($("#mockList"), ex.length>1 ? cur : mine, {
     emptyText: "Пока нет ни одного результата. Нажми «Добавить результат», когда напишешь работу.",
     studentLabel: "внесено мной",
+    fileHref: (it, f) => "/api/mockfiles?id="+state.id+"&fid="+encodeURIComponent(f.fid),
     canEdit: it => it.by==="student",
     onEdit: it => openForm(it),
     onDelete: async it => {
